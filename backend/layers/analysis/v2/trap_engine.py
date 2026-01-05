@@ -1,5 +1,5 @@
 import uuid
-from models.data_models import Trap
+from backend.models.data_models import Trap
 
 
 class TrapEngineV2:

@@ -16,14 +16,14 @@ import os
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from collections import defaultdict
-from models.data_models import (
+from backend.models.data_models import (
     AnalysisInput,
     AnalysisOutput,
     AnalysisSummary,
     RiskItem,
     ExtractedSignal
 )
-from layers.analysis.risk_builder_v1 import RiskBuilderV1
+from backend.layers.analysis.risk_builder_v1 import RiskBuilderV1
 
 
 class AnalysisService:

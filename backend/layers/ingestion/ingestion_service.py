@@ -12,7 +12,7 @@ No business logic, contract understanding, risk analysis, extraction, or analysi
 """
 
 from datetime import datetime
-from models.data_models import (
+from backend.models.data_models import (
     IngestionInput,
     IngestionResult,
     TextBlock

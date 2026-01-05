@@ -15,7 +15,7 @@ import os
 import re
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from models.data_models import TextBlock, ExtractionCandidate
+from backend.models.data_models import TextBlock, ExtractionCandidate
 
 
 class ExtractionService:

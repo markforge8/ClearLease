@@ -4,8 +4,8 @@ Tests temporal lock-in trap detection from risk signals.
 """
 
 import unittest
-from layers.analysis.v2.trap_engine import TrapEngineV2
-from layers.analysis.v2.risk_chain_builder import RiskChainBuilder
+from backend.layers.analysis.v2.trap_engine import TrapEngineV2
+from backend.layers.analysis.v2.risk_chain_builder import RiskChainBuilder
 
 
 class TestTrapEngineV2(unittest.TestCase):

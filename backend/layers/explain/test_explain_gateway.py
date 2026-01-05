@@ -15,8 +15,8 @@ Gateway only:
 
 import unittest
 from typing import Optional
-from layers.explain.explain_gateway import ExplainGateway
-from models.data_models import (
+from backend.layers.explain.explain_gateway import ExplainGateway
+from backend.models.data_models import (
     ExplanationOutput,
     ExplanationOutputV1,
     ExplainV2Output,

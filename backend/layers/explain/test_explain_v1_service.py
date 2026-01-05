@@ -5,8 +5,8 @@ Tests structural risk field explanation generation from risk_fields.
 
 import unittest
 from pathlib import Path
-from layers.explain.explain_v1_service import ExplainV1Service
-from models.data_models import (
+from backend.layers.explain.explain_v1_service import ExplainV1Service
+from backend.models.data_models import (
     RiskField,
     RiskAxis,
     ExplanationOutputV1

@@ -5,8 +5,8 @@ Tests rule-based risk aggregation with mocked extracted_signals.
 
 import unittest
 from pathlib import Path
-from layers.analysis.analysis_service import AnalysisService
-from models.data_models import AnalysisInput, ExtractedSignal
+from backend.layers.analysis.analysis_service import AnalysisService
+from backend.models.data_models import AnalysisInput, ExtractedSignal
 
 
 class TestAnalysisService(unittest.TestCase):

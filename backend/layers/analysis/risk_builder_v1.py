@@ -1,5 +1,5 @@
 from typing import List
-from models.data_models import RiskField, RiskAxis, AnalysisOutput, ExtractedSignal
+from backend.models.data_models import RiskField, RiskAxis, AnalysisOutput, ExtractedSignal
 
 
 class RiskBuilderV1:

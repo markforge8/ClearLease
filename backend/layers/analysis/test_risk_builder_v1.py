@@ -5,8 +5,8 @@ Tests structural risk field generation from v0 analysis output.
 
 import unittest
 from pathlib import Path
-from layers.analysis.risk_builder_v1 import RiskBuilderV1
-from models.data_models import (
+from backend.layers.analysis.risk_builder_v1 import RiskBuilderV1
+from backend.models.data_models import (
     AnalysisOutput,
     AnalysisSummary,
     RiskItem,

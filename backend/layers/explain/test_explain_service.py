@@ -5,8 +5,8 @@ Tests template-based explanation generation with mocked AnalysisOutput.
 
 import unittest
 from pathlib import Path
-from layers.explain.explain_service import ExplainService
-from models.data_models import (
+from backend.layers.explain.explain_service import ExplainService
+from backend.models.data_models import (
     AnalysisOutput,
     AnalysisSummary,
     RiskItem,

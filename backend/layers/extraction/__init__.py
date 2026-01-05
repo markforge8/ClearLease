@@ -9,7 +9,7 @@ Exports:
 """
 
 from .extraction_service import ExtractionService
-from models.data_models import ExtractionCandidate
+from backend.models.data_models import ExtractionCandidate
 
 __all__ = [
     "ExtractionService",

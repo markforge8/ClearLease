@@ -10,7 +10,7 @@ Exports:
 """
 
 from .analysis_service import AnalysisService
-from models.data_models import AnalysisInput, AnalysisOutput
+from backend.models.data_models import AnalysisInput, AnalysisOutput
 
 __all__ = [
     "AnalysisService",

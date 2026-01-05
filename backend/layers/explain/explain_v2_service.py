@@ -11,7 +11,7 @@ Currently only implements Temporal Lock-in trap type (MVP constraint).
 """
 
 from typing import Optional
-from models.data_models import (
+from backend.models.data_models import (
     ExplainV2Input,
     ExplainV2Output,
     TrapType,

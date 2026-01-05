@@ -14,7 +14,7 @@ import json
 import os
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from models.data_models import AnalysisOutput, ExplanationOutput, ExplanationBlock
+from backend.models.data_models import AnalysisOutput, ExplanationOutput, ExplanationBlock
 
 
 class ExplainService:

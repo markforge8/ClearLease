@@ -16,7 +16,7 @@ from .explain_service import ExplainService
 from .explain_v1_service import ExplainV1Service
 from .explain_v2_service import ExplainV2Service
 from .explain_gateway import ExplainGateway
-from models.data_models import (
+from backend.models.data_models import (
     ExplanationOutput,
     ExplanationOutputV1,
     ExplanationBlock,

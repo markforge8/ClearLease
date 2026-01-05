@@ -11,7 +11,7 @@ Exports:
 """
 
 from .ingestion_service import IngestionService
-from models.data_models import IngestionInput, IngestionResult, TextBlock
+from backend.models.data_models import IngestionInput, IngestionResult, TextBlock
 
 __all__ = [
     "IngestionService",
