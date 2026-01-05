@@ -1,0 +1,56 @@
+{
+  "overview": {
+    "attention_level": "high",
+    "summary": "合同通过自动续约机制创建时间锁，退出成本随时间递增。"
+  },
+  "key_findings": [
+    {
+      "source": "v2",
+      "headline": "合同通过自动续约机制创建时间锁，退出成本随时间递增。",
+      "core_logic": "如果用户错过特定时间窗口的操作，合同会自动续约，而用户失去选择权，退出成本随之上升。",
+      "power_map": "服务提供方拥有续约的自动触发权，用户承担错过窗口的成本。",
+      "mechanism": "Temporal Lock-in"
+    }
+  ],
+  "next_actions": [
+    {
+      "source": "v2",
+      "action": "记录续约通知的截止日期并设置提醒",
+      "mechanism": "Temporal Lock-in"
+    },
+    {
+      "source": "v2",
+      "action": "评估续约后的退出成本",
+      "mechanism": "Temporal Lock-in"
+    }
+  ],
+  "details": {
+    "v0": {
+      "explanation_blocks": []
+    },
+    "v1": {
+      "risk_field_explanations": []
+    },
+    "v2": {
+      "mechanism": "Temporal Lock-in",
+      "headline": "合同通过自动续约机制创建时间锁，退出成本随时间递增。",
+      "core_logic": "如果用户错过特定时间窗口的操作，合同会自动续约，而用户失去选择权，退出成本随之上升。",
+      "power_map": "服务提供方拥有续约的自动触发权，用户承担错过窗口的成本。",
+      "irreversibility": "partially_reversible",
+      "escape_window": {
+        "exists": true,
+        "conditions": "在服务到期前关闭自动续费服务",
+        "deadline": "30 days"
+      },
+      "user_actions": [
+        "记录续约通知的截止日期并设置提醒",
+        "评估续约后的退出成本",
+        "考虑在续约窗口内做出决定"
+      ],
+      "confidence_level": "high",
+      "lock_in_dynamics": {
+        "description": "错过初始续约窗口后，续约自动生效，退出需要支付更高成本或承担更长期限。"
+      }
+    }
+  }
+}

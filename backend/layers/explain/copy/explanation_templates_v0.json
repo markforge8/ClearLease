@@ -1,0 +1,49 @@
+{
+    "version": "v0",
+    "description": "Explanation templates v0 - user-facing explanations for contract risk items",
+  
+    "overall_messages": {
+      "low": "No major risk indicators were detected in this contract.",
+      "medium": "Some contract terms may require your attention.",
+      "high": "This contract contains terms that should be reviewed carefully."
+    },
+  
+    "risk_explanations": {
+      "AUTO_RENEWAL": {
+        "title": "Automatic Renewal",
+        "message": "This contract may renew automatically unless you take action to cancel it.",
+        "user_action": "Check the renewal cycle and how to cancel before the renewal date."
+      },
+  
+      "LIMITED_NOTICE": {
+        "title": "Limited Prior Notice",
+        "message": "Some changes or renewals may happen without sufficient advance notice.",
+        "user_action": "Review how and when notifications are provided."
+      },
+  
+      "UNILATERAL_CHANGE": {
+        "title": "Unilateral Changes",
+        "message": "One party may be allowed to change contract terms without your consent.",
+        "user_action": "Pay close attention to clauses about modifications or updates."
+      },
+  
+      "EARLY_TERMINATION_PENALTY": {
+        "title": "Early Termination Penalties",
+        "message": "Ending this contract early may result in penalties or additional fees.",
+        "user_action": "Check the cost and conditions for early termination."
+      },
+  
+      "LIABILITY_LIMITATION": {
+        "title": "Liability Limitations",
+        "message": "The contract limits one party’s responsibility for damages or losses.",
+        "user_action": "Understand which types of losses may not be covered."
+      },
+  
+      "DATA_SHARING": {
+        "title": "Data Sharing",
+        "message": "Your personal or usage data may be shared with third parties.",
+        "user_action": "Review what data is shared and who it may be shared with."
+      }
+    }
+  }
+  

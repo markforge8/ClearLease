@@ -1,0 +1,172 @@
+/* Explain v2 Content Display Styles */
+/* Design principles: calm, minimal, progressive disclosure */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #fafafa;
+    color: #1a1a1a;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+.content-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+/* Content items */
+.content-item {
+    margin-bottom: 3rem;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.content-item.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.content-item.hidden {
+    display: none;
+}
+
+.content-block {
+    padding: 1.5rem 0;
+}
+
+/* Content text */
+.content-text {
+    font-size: 1rem;
+    color: #2c2c2c;
+    line-height: 1.6;
+    font-weight: 300;
+}
+
+.content-headline {
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: #2c2c2c;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+}
+
+/* Actions list */
+.actions-list {
+    list-style: none;
+    padding: 0;
+}
+
+.actions-list li {
+    font-size: 1rem;
+    color: #2c2c2c;
+    line-height: 1.6;
+    font-weight: 300;
+    padding: 0.5rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.actions-list li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: #666666;
+}
+
+/* Pacing brake */
+.pacing-brake {
+    text-align: center;
+    padding: 2rem 0;
+    margin: 2rem 0;
+}
+
+.pacing-brake.hidden {
+    display: none;
+}
+
+.show-next-button {
+    font-size: 1rem;
+    font-weight: 400;
+    font-family: inherit;
+    color: #1a1a1a;
+    background-color: #ffffff;
+    border: 1px solid #d0d0d0;
+    padding: 0.875rem 2rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    border-radius: 0;
+    letter-spacing: 0;
+}
+
+.show-next-button:hover {
+    border-color: #8a8a8a;
+}
+
+.show-next-button:active {
+    border-color: #666666;
+}
+
+/* Re-centering block */
+.recentering-block {
+    text-align: center;
+    padding: 2rem 0;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 3rem;
+}
+
+.recentering-text {
+    font-size: 0.95rem;
+    color: #666666;
+    font-weight: 300;
+    font-style: italic;
+}
+
+/* Action Translation panel */
+.action-translation-block {
+    padding: 2rem 0;
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.action-translation-text {
+    font-size: 0.95rem;
+    color: #666666;
+    font-weight: 300;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.action-translation-text:last-child {
+    margin-bottom: 0;
+}
+
+/* Scroll trigger zone */
+.scroll-trigger-zone {
+    height: 1px;
+    margin: 300px 0;
+    visibility: hidden;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .content-container {
+        padding: 1.5rem 1rem;
+    }
+    
+    .content-headline {
+        font-size: 1.25rem;
+    }
+    
+    .content-text {
+        font-size: 0.95rem;
+    }
+}
+

@@ -1,0 +1,106 @@
+{
+  "overview": {
+    "attention_level": "high",
+    "summary": "合同通过自动续约机制创建时间锁，退出成本随时间递增。"
+  },
+  "key_findings": [
+    {
+      "source": "v2",
+      "headline": "合同通过自动续约机制创建时间锁，退出成本随时间递增。",
+      "core_logic": "如果用户错过特定时间窗口的操作，合同会自动续约，而用户失去选择权，退出成本随之上升。",
+      "power_map": "对方拥有续约的自动触发权，用户承担错过窗口的成本。",
+      "mechanism": "Temporal Lock-in"
+    },
+    {
+      "source": "v1",
+      "title": "时间风险集中：自动续约陷阱",
+      "message": "合同设置了自动续约机制，这意味着如果你忘记在特定时间点取消，就会被自动绑定更长时间。这种设计明显偏向房东，让你失去了选择权。",
+      "axis": "temporal",
+      "intensity": "medium",
+      "affected_party": "tenant"
+    },
+    {
+      "source": "v0",
+      "title": "Automatic Renewal",
+      "message": "This contract may renew automatically unless you take action to cancel it.",
+      "severity": "medium",
+      "risk_code": "AUTO_RENEWAL"
+    },
+    {
+      "source": "v0",
+      "title": "Early Termination Penalties",
+      "message": "Ending this contract early may result in penalties or additional fees.",
+      "severity": "high",
+      "risk_code": "EARLY_TERMINATION_PENALTY"
+    }
+  ],
+  "next_actions": [
+    {
+      "source": "v2",
+      "action": "记录续约通知的截止日期并设置提醒",
+      "mechanism": "Temporal Lock-in"
+    },
+    {
+      "source": "v2",
+      "action": "评估续约后的退出成本",
+      "mechanism": "Temporal Lock-in"
+    }
+  ],
+  "details": {
+    "v0": {
+      "explanation_blocks": [
+        {
+          "title": "Automatic Renewal",
+          "message": "This contract may renew automatically unless you take action to cancel it.",
+          "user_action": "Check the renewal cycle and how to cancel before the renewal date.",
+          "severity": "medium",
+          "risk_code": "AUTO_RENEWAL"
+        },
+        {
+          "title": "Early Termination Penalties",
+          "message": "Ending this contract early may result in penalties or additional fees.",
+          "user_action": "Check the cost and conditions for early termination.",
+          "severity": "high",
+          "risk_code": "EARLY_TERMINATION_PENALTY"
+        }
+      ]
+    },
+    "v1": {
+      "risk_field_explanations": [
+        {
+          "axis": "temporal",
+          "intensity": "medium",
+          "affected_party": "tenant",
+          "title": "时间风险集中：自动续约陷阱",
+          "message": "合同设置了自动续约机制，这意味着如果你忘记在特定时间点取消，就会被自动绑定更长时间。这种设计明显偏向房东，让你失去了选择权。",
+          "user_action": "明确记录续约通知的截止日期，设置提醒，并了解如何提前终止。",
+          "compounding": false,
+          "source_blocks": [
+            "block_0"
+          ]
+        }
+      ]
+    },
+    "v2": {
+      "mechanism": "Temporal Lock-in",
+      "headline": "合同通过自动续约机制创建时间锁，退出成本随时间递增。",
+      "core_logic": "如果用户错过特定时间窗口的操作，合同会自动续约，而用户失去选择权，退出成本随之上升。",
+      "power_map": "对方拥有续约的自动触发权，用户承担错过窗口的成本。",
+      "irreversibility": "partially_reversible",
+      "escape_window": {
+        "exists": true,
+        "conditions": "在续约窗口关闭前提供书面终止通知",
+        "deadline": "合同到期前90天"
+      },
+      "user_actions": [
+        "记录续约通知的截止日期并设置提醒",
+        "评估续约后的退出成本",
+        "考虑在续约窗口内做出决定"
+      ],
+      "confidence_level": "high",
+      "lock_in_dynamics": {
+        "description": "错过初始续约窗口后，续约自动生效，退出需要支付更高成本或承担更长期限。"
+      }
+    }
+  }
+}

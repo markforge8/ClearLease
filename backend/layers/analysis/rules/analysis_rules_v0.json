@@ -1,0 +1,84 @@
+{
+  "version": "v0",
+  "description": "Analysis rules v0 - maps extraction rule_id to human-meaningful contract risk codes",
+
+  "risk_mappings": [
+    {
+      "rule_id": "keyword_001",
+      "risk_code": "AUTO_RENEWAL",
+      "severity": "medium",
+      "description": "Automatic renewal related terms detected"
+    },
+    {
+      "rule_id": "phrase_001",
+      "risk_code": "AUTO_RENEWAL",
+      "severity": "medium",
+      "description": "Automatic renewal phrases detected"
+    },
+
+    {
+      "rule_id": "phrase_003",
+      "risk_code": "LIMITED_NOTICE",
+      "severity": "high",
+      "description": "Contract changes or renewal without sufficient prior notice"
+    },
+    {
+      "rule_id": "phrase_004",
+      "risk_code": "LIMITED_NOTICE",
+      "severity": "high",
+      "description": "Notice limitation clauses detected"
+    },
+
+    {
+      "rule_id": "phrase_006",
+      "risk_code": "UNILATERAL_CHANGE",
+      "severity": "high",
+      "description": "One party may change contract terms unilaterally"
+    },
+    {
+      "rule_id": "structural_002",
+      "risk_code": "UNILATERAL_CHANGE",
+      "severity": "high",
+      "description": "Structural patterns indicating unilateral modification rights"
+    },
+
+    {
+      "rule_id": "phrase_009",
+      "risk_code": "EARLY_TERMINATION_PENALTY",
+      "severity": "high",
+      "description": "Penalties or fees for early termination detected"
+    },
+    {
+      "rule_id": "phrase_010",
+      "risk_code": "EARLY_TERMINATION_PENALTY",
+      "severity": "high",
+      "description": "Early termination cost clauses detected"
+    },
+
+    {
+      "rule_id": "keyword_007",
+      "risk_code": "LIABILITY_LIMITATION",
+      "severity": "medium",
+      "description": "Limitation or exclusion of liability detected"
+    },
+    {
+      "rule_id": "phrase_012",
+      "risk_code": "LIABILITY_LIMITATION",
+      "severity": "medium",
+      "description": "Liability limitation clauses detected"
+    },
+
+    {
+      "rule_id": "keyword_011",
+      "risk_code": "DATA_SHARING",
+      "severity": "medium",
+      "description": "Personal or usage data sharing detected"
+    },
+    {
+      "rule_id": "phrase_020",
+      "risk_code": "DATA_SHARING",
+      "severity": "medium",
+      "description": "Third-party data sharing clauses detected"
+    }
+  ]
+}

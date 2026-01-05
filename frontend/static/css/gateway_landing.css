@@ -1,0 +1,119 @@
+/* Gateway Landing Page Styles */
+/* Design principles: calm, restrained, neutral, low saturation, generous whitespace */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #fafafa;
+    color: #1a1a1a;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gateway-container {
+    max-width: 600px;
+    padding: 2rem;
+    text-align: center;
+}
+
+/* Block 1: Relief-first headline */
+.headline {
+    font-size: 1.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+    color: #2c2c2c;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.01em;
+}
+
+/* Block 2: Systemic framing */
+.subline {
+    font-size: 0.95rem;
+    color: #666666;
+    font-weight: 300;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+/* Block 3: Re-centering */
+.recentering {
+    font-size: 0.95rem;
+    color: #666666;
+    font-weight: 300;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+    font-style: italic;
+}
+
+/* Block 4: Expectation setting */
+.expectation {
+    font-size: 0.95rem;
+    color: #666666;
+    font-weight: 300;
+    margin-bottom: 3rem;
+    line-height: 1.5;
+}
+
+/* Block 3: CTA Button */
+.cta-button {
+    font-size: 1rem;
+    font-weight: 400;
+    font-family: inherit;
+    color: #1a1a1a;
+    background-color: #ffffff;
+    border: 1px solid #d0d0d0;
+    padding: 0.875rem 2rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    border-radius: 0;
+    letter-spacing: 0;
+}
+
+.cta-button:hover {
+    border-color: #8a8a8a;
+}
+
+.cta-button:active {
+    border-color: #666666;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .gateway-container {
+        padding: 1.5rem;
+    }
+    
+    .headline {
+        font-size: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .subline {
+        font-size: 0.9rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .recentering {
+        font-size: 0.9rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .expectation {
+        font-size: 0.9rem;
+        margin-bottom: 2.5rem;
+    }
+    
+    .cta-button {
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+    }
+}
+

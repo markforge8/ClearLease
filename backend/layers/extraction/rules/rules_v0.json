@@ -1,0 +1,125 @@
+{
+  "version": "v0",
+  "description": "Extraction rules for v0 - keyword, phrase, and structural patterns only",
+  "rules": [
+    {
+      "rule_id": "keyword_001",
+      "rule_type": "keyword",
+      "name": "Basic keyword match",
+      "keywords": ["lease", "rental", "tenant", "landlord"],
+      "case_sensitive": false,
+      "description": "Matches common lease-related keywords"
+    },
+    {
+      "rule_id": "phrase_001",
+      "rule_type": "phrase",
+      "name": "Common lease phrases",
+      "phrases": [
+        "lease agreement",
+        "rental agreement",
+        "term of lease",
+        "monthly rent"
+      ],
+      "case_sensitive": false,
+      "description": "Matches common lease-related phrases"
+    },
+    {
+      "rule_id": "phrase_009",
+      "rule_type": "phrase",
+      "name": "Early termination penalty phrases",
+      "phrases": [
+        "early termination",
+        "termination penalty",
+        "penalty equal to"
+      ],
+      "case_sensitive": false,
+      "description": "Matches early termination penalty phrases"
+    },
+    {
+      "rule_id": "phrase_010",
+      "rule_type": "phrase",
+      "name": "Early termination cost phrases",
+      "phrases": [
+        "early termination cost",
+        "termination fee",
+        "penalty for early termination"
+      ],
+      "case_sensitive": false,
+      "description": "Matches early termination cost phrases"
+    },
+    {
+      "rule_id": "phrase_011",
+      "rule_type": "phrase",
+      "name": "Automatic renewal phrases",
+      "phrases": [
+        "automatically renew",
+        "shall automatically renew",
+        "automatic renewal"
+      ],
+      "case_sensitive": false,
+      "description": "Matches automatic renewal phrases"
+    },
+    {
+      "rule_id": "phrase_012",
+      "rule_type": "phrase",
+      "name": "Liability limitation phrases",
+      "phrases": [
+        "not be held liable",
+        "not be liable",
+        "as-is condition"
+      ],
+      "case_sensitive": false,
+      "description": "Matches liability limitation phrases"
+    },
+    {
+      "rule_id": "phrase_013",
+      "rule_type": "phrase",
+      "name": "Responsibility transfer phrases",
+      "phrases": [
+        "responsible for all maintenance",
+        "responsible for all repairs",
+        "responsible for all HVAC maintenance"
+      ],
+      "case_sensitive": false,
+      "description": "Matches affirmative responsibility transfer phrases for maintenance/repair (no negation)"
+    },
+    {
+      "rule_id": "phrase_014",
+      "rule_type": "phrase",
+      "name": "Additional liability phrases",
+      "phrases": [
+        "not be responsible for",
+        "shall not be responsible for",
+        "shall not be liable",
+        "not be liable for damages arising from"
+      ],
+      "case_sensitive": false,
+      "description": "Matches liability limitation phrases with negation"
+    },
+    {
+      "rule_id": "structural_001",
+      "rule_type": "structural",
+      "name": "Date pattern",
+      "pattern": "date",
+      "format": "MM/DD/YYYY",
+      "description": "Matches date patterns in MM/DD/YYYY format"
+    },
+    {
+      "rule_id": "structural_002",
+      "rule_type": "structural",
+      "name": "Currency amount",
+      "pattern": "currency",
+      "format": "$###,###.##",
+      "description": "Matches currency amounts"
+    },
+    {
+      "rule_id": "structural_003",
+      "rule_type": "structural",
+      "name": "Line starting with label",
+      "pattern": "line_start",
+      "label_prefixes": ["Date:", "Amount:", "Term:", "Rent:"],
+      "description": "Matches lines that start with specific labels"
+    }
+  ]
+}
+
