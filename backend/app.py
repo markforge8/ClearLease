@@ -14,6 +14,17 @@ sys.path.insert(0, PROJECT_ROOT)
 from backend.run_gateway_json_output import run_end_to_end
 
 app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://clearlease-frontend.vercel.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class AnalyzeRequest(BaseModel):
@@ -34,4 +45,5 @@ def analyze(request: AnalyzeRequest):
         "next_actions": gateway_output.next_actions,
         "details": gateway_output.details
     }
+
 
