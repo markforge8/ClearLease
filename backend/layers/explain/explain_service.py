@@ -1,13 +1,24 @@
 """
-Explanation Service
-==================
-This service handles the explanation layer responsibilities:
+Explanation Service v0 (FREE)
+=============================
+This service handles the explanation layer responsibilities for FREE tier:
 - Loading explanation templates from configuration
 - Mapping AnalysisOutput to user-facing explanations
 - Producing explanation blocks for each risk item
 
 This service implements the explanation v0 contract as a pure presentation layer.
 No AI, LLM, inference, risk analysis, or template modification is performed.
+
+IMPORTANT: explain v0 = FREE tier
+- Only provides factual explanations
+- No conclusion-type information
+- No action recommendations
+- No "should you sign"暗示
+
+Why can't merge with v1:
+- v0 is designed for FREE access with minimal functionality
+- v1 is for PAID tier with structured next-step guidance
+- Business model requires clear separation between free and paid features
 """
 
 import json
@@ -75,24 +86,21 @@ class ExplainService:
     def explain(self, analysis_output: AnalysisOutput) -> ExplanationOutput:
         """
         Convert AnalysisOutput into user-facing ExplanationOutput.
-        
+
         This method:
-        1. Selects overall_message based on risk_level
+        1. Uses neutral overall message (no risk level-based judgment)
         2. Maps each risk_item to an explanation_block using templates
         3. Gracefully skips risk_items with unknown risk_codes
-        
+        4. Does not use any conclusion-type information (severity, risk_level)
+
         Args:
             analysis_output: AnalysisOutput from the analysis layer
-            
+
         Returns:
             ExplanationOutput containing overall_message and explanation_blocks
         """
-        # Select overall_message based on risk_level
-        risk_level = analysis_output.analysis_summary.risk_level
-        overall_message = self.templates['overall_messages'].get(
-            risk_level,
-            self.templates['overall_messages']['low']  # Default fallback
-        )
+        # Use neutral overall message (no risk level-based judgment)
+        overall_message = "我们发现了一些需要您注意的条款。请查看以下详细信息。"
         
         # Map each risk_item to an explanation_block
         explanation_blocks: List[ExplanationBlock] = []
@@ -108,12 +116,12 @@ class ExplainService:
             
             template = risk_explanations[risk_code]
             
-            # Create explanation block
+            # Create explanation block with minimal information
             explanation_block = ExplanationBlock(
                 title=template['title'],
                 message=template['message'],
                 user_action=template['user_action'],
-                severity=risk_item.severity,
+                severity='low',  # Default value, not intended for user-facing
                 risk_code=risk_code
             )
             

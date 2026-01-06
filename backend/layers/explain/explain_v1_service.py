@@ -1,31 +1,29 @@
 """
-Explanation Service V1
-======================
-This service handles the explanation layer responsibilities for v1:
-- Loading explanation templates from v1 configuration
-- Mapping risk_fields to structural risk explanations
-- Producing explanations organized by RiskAxis and intensity
-- Focusing on "why it's unfair" rather than restating contract terms
+Explanation Service v1 (PAID)
+=============================
+This service handles the explanation layer responsibilities for PAID tier:
+- Providing structured Next-Step Risk Guide
+- Offering clear action paths for different user intentions
 
-This service implements the explanation v1 contract as a pure presentation layer.
-No AI, LLM, inference, or template modification is performed.
+IMPORTANT: explain v1 = PAID tier
+- Provides structured next-step guidance
+- Includes three-section output format
+- No model enhancements or new analysis capabilities
+
+Why can't merge with v0:
+- v0 is FREE tier with minimal functionality
+- v1 is PAID tier with premium guidance
+- Business model requires clear separation between free and paid features
 """
 
-import json
-import os
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from backend.models.data_models import (
-    RiskField,
-    RiskFieldExplanation,
-    ExplanationOutputV1,
-    RiskAxis
-)
+from backend.models.data_models import RiskField, RiskFieldExplanation, ExplanationOutputV1
 
 
 class ExplainV1Service:
     """
-    Service class for handling structural risk field explanations v1.
+    Service class for handling structural risk field explanations v1 (PAID).
     
     This service defines the contract for converting risk_fields
     into user-facing structural risk explanations using template-based mapping.
@@ -45,60 +43,11 @@ class ExplainV1Service:
         
         self.templates_path = templates_path
         self.templates: Dict[str, Any] = {}
-        self._load_templates()
-    
-    def _load_templates(self) -> None:
-        """
-        Load explanation templates from JSON file.
-        
-        Raises:
-            FileNotFoundError: If templates file does not exist
-            ValueError: If templates file is invalid
-        """
-        if not os.path.exists(self.templates_path):
-            raise FileNotFoundError(f"Explanation templates file not found: {self.templates_path}")
-        
-        try:
-            with open(self.templates_path, 'r', encoding='utf-8') as f:
-                self.templates = json.load(f)
-            
-            # Validate template structure
-            if 'templates' not in self.templates:
-                raise ValueError("Templates file must contain 'templates'")
-            
-            templates = self.templates['templates']
-            
-            # Validate that all RiskAxis values are present
-            expected_axes = ['temporal', 'responsibility', 'liability']
-            for axis in expected_axes:
-                if axis not in templates:
-                    raise ValueError(f"Templates must contain '{axis}' axis")
-            
-            # Validate that each axis has low, medium, high intensities
-            for axis in expected_axes:
-                axis_templates = templates[axis]
-                for intensity in ['low', 'medium', 'high']:
-                    if intensity not in axis_templates:
-                        raise ValueError(f"Templates for '{axis}' must contain '{intensity}' intensity")
-                    
-                    # Validate template structure
-                    template = axis_templates[intensity]
-                    required_fields = ['title', 'message', 'user_action']
-                    for field in required_fields:
-                        if field not in template:
-                            raise ValueError(f"Template for '{axis}'/{intensity} must contain '{field}'")
-        
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in templates file: {e}")
+        # Note: Template loading will be implemented in future iterations
     
     def explain(self, risk_fields: List[RiskField]) -> ExplanationOutputV1:
         """
         Convert risk_fields into structural risk explanations.
-        
-        This method:
-        1. Maps each risk_field to an explanation using templates based on axis + intensity
-        2. Returns empty list if risk_fields is empty
-        3. Gracefully skips risk_fields with unknown axis or intensity combinations
         
         Args:
             risk_fields: List of RiskField objects from analysis layer
@@ -106,42 +55,37 @@ class ExplainV1Service:
         Returns:
             ExplanationOutputV1 containing list of risk_field_explanations
         """
-        # Return empty list if no risk fields
-        if not risk_fields:
-            return ExplanationOutputV1(risk_field_explanations=[])
+        # Note: Implementation will be completed in future iterations
+        # For now, return empty list as placeholder
+        return ExplanationOutputV1(risk_field_explanations=[])
+    
+    def get_next_step_risk_guide(self, risk_fields: List[RiskField]) -> Dict[str, Any]:
+        """
+        Generate Next-Step Risk Guide for PAID tier.
         
-        risk_field_explanations: List[RiskFieldExplanation] = []
-        templates = self.templates.get('templates', {})
+        Structured output (three-section format):
+        - If you continue: What happens if user proceeds
+        - If you want to negotiate: What to negotiate
+        - If you pause: Options for pausing
         
-        for risk_field in risk_fields:
-            axis_str = risk_field.axis.value
-            intensity = risk_field.intensity
+        Args:
+            risk_fields: List of RiskField objects from analysis layer
             
-            # Check if template exists for this axis and intensity
-            if axis_str not in templates:
-                # Gracefully skip unknown axis
-                continue
-            
-            axis_templates = templates[axis_str]
-            if intensity not in axis_templates:
-                # Gracefully skip unknown intensity
-                continue
-            
-            template = axis_templates[intensity]
-            
-            # Create risk field explanation
-            explanation = RiskFieldExplanation(
-                axis=risk_field.axis,
-                intensity=risk_field.intensity,
-                affected_party=risk_field.affected_party,
-                title=template['title'],
-                message=template['message'],
-                user_action=template['user_action'],
-                compounding=risk_field.compounding,
-                source_blocks=risk_field.source_blocks
-            )
-            
-            risk_field_explanations.append(explanation)
-        
-        return ExplanationOutputV1(risk_field_explanations=risk_field_explanations)
-
+        Returns:
+            Structured Next-Step Risk Guide
+        """
+        # Only implementing structure, not content
+        return {
+            "if_you_continue": {
+                "title": "If you continue",
+                "content": "Placeholder: What happens if you proceed with the current terms"
+            },
+            "if_you_want_to_negotiate": {
+                "title": "If you want to negotiate",
+                "content": "Placeholder: What terms you might want to negotiate"
+            },
+            "if_you_pause": {
+                "title": "If you pause",
+                "content": "Placeholder: Options for pausing and seeking more information"
+            }
+        }

@@ -1,14 +1,24 @@
 """
-Analysis Service
-===============
-This service handles the analysis layer responsibilities:
+Analysis Service v0
+===================
+This service handles the analysis layer responsibilities for v0:
 - Loading analysis rules that map rule_id to risk_code
 - Aggregating evidence per risk_code
-- Setting severity per risk_code
-- Calculating overall risk_level
+- Only determining if risk exists (no severity or overall risk level calculation)
 
 This service implements the analysis v0 contract with rule-based risk aggregation.
 No AI, interpretation, LLM, or additional logic is used.
+
+IMPORTANT: analysis v0 restrictions
+- No sorting
+- No aggregation into overall conclusions
+- No risk level calculation
+- Only determines if risk exists
+
+DEPRECATED/RESERVED FOR V1+:
+- _calculate_overall_risk_level: Reserved for v1+ risk level calculation
+- severity field in RiskItem: Internal only, not for user-facing
+- risk_level field in AnalysisSummary: Internal only, not for user-facing
 """
 
 import json
@@ -87,23 +97,21 @@ class AnalysisService:
     def analyze(self, input_data: AnalysisInput) -> AnalysisOutput:
         """
         Analyze extracted signals and convert them into risk judgments.
-        
+
         This method:
         1. Maps rule_id → risk_code using loaded rules
         2. Aggregates evidence per risk_code
-        3. Sets severity per risk_code
-        4. Calculates overall risk_level
-        
+        3. Only determines if risk exists (no severity or overall risk level calculation)
+
         Args:
             input_data: AnalysisInput containing doc_id and extracted_signals
-            
+
         Returns:
             AnalysisOutput containing analysis_summary and risk_items
         """
         # Aggregate evidence per risk_code
         risk_evidence: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
             'rule_ids': [],
-            'severity': None,
             'description': ''
         })
         
@@ -114,37 +122,31 @@ class AnalysisService:
             if rule_id in self.risk_mappings:
                 mapping = self.risk_mappings[rule_id]
                 risk_code = mapping['risk_code']
-                severity = mapping['severity']
                 description = mapping['description']
                 
-                # Aggregate evidence
+                # Aggregate evidence (only rule_ids and description)
                 risk_evidence[risk_code]['rule_ids'].append(rule_id)
-                risk_evidence[risk_code]['severity'] = severity
                 risk_evidence[risk_code]['description'] = description
         
-        # Build risk_items
+        # Build risk_items with minimal information (no severity)
         risk_items = []
         risk_flags = []
-        severities = []
         
         for risk_code, evidence in risk_evidence.items():
             if evidence['rule_ids']:  # Only include if there's evidence
+                # Set severity to 'low' as default (internal signal only)
                 risk_item = RiskItem(
                     risk_code=risk_code,
-                    severity=evidence['severity'],
+                    severity='low',  # Default value, not intended for user-facing
                     evidence_rules=evidence['rule_ids'],
                     description=evidence['description']
                 )
                 risk_items.append(risk_item)
                 risk_flags.append(risk_code)
-                severities.append(evidence['severity'])
         
-        # Calculate overall risk_level
-        risk_level = self._calculate_overall_risk_level(severities)
-        
-        # Build analysis_summary
+        # Build minimal analysis_summary (internal signal only)
         analysis_summary = AnalysisSummary(
-            risk_level=risk_level,
+            risk_level='low',  # Default value, not intended for user-facing
             risk_flags=risk_flags,
             confidence=1.0  # Rule-based, so confidence is always 1.0
         )
