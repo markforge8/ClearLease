@@ -6,14 +6,29 @@ import sys
 import os
 import time
 import random
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, Header
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from datetime import datetime
+from jose import JWTError, jwt
+from dotenv import load_dotenv
 
 # Fix Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
+# Load environment variables
+load_dotenv()
+
 from backend.run_gateway_json_output import run_end_to_end
+from backend.database import init_db
+from backend.config.database import get_db
+from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload
+
+import os
+
+# Get port from environment variable, default to 8080
+PORT = int(os.getenv("PORT", "8080"))
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +42,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Initialize the database on application startup.
+    """
+    init_db()
 
 
 class AnalyzeRequest(BaseModel):
@@ -84,5 +107,87 @@ def create_payment_intent():
     except Exception as e:
         print(f"Error creating PaymentIntent: {e}")
         return {"error": str(e)}
+
+
+@app.post("/api/webhook/gumroad")
+async def gumroad_webhook(payload: GumroadWebhookPayload, db: Session = Depends(get_db)):
+    """
+    Handle Gumroad webhook events for sales.
+    Updates user's paid status based on the webhook payload.
+    """
+    try:
+        # Extract buyer email and order ID from payload
+        buyer_email = payload.buyer_email
+        order_id = payload.order_id
+        
+        print(f"Received Gumroad webhook for email: {buyer_email}, order ID: {order_id}")
+        
+        # Find user by email in user_profiles
+        user = db.query(UserProfile).filter(UserProfile.email == buyer_email).first()
+        
+        if user:
+            # Update user's paid status
+            user.paid = True
+            user.paid_at = datetime.utcnow()
+            user.gumroad_order_id = order_id
+            db.commit()
+            print(f"Updated user {buyer_email} to paid status")
+        else:
+            # Log if user not found, but don't error
+            print(f"User not found for email: {buyer_email}")
+        
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Error processing Gumroad webhook: {e}")
+        # Return success even if there's an error to avoid Gumroad retries
+        return {"status": "success"}
+
+
+@app.get("/api/me", response_model=UserProfileResponse)
+async def get_user_status(Authorization: str = Header(...), db: Session = Depends(get_db)):
+    """
+    Get current user's status including paid status.
+    Uses Supabase JWT for authentication.
+    """
+    try:
+        # Extract token from Authorization header
+        token = Authorization.replace("Bearer ", "")
+        
+        # Verify and decode JWT
+        SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+        if not SUPABASE_JWT_SECRET:
+            raise HTTPException(status_code=500, detail="JWT secret not configured")
+        
+        payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"])
+        user_id = payload.get("sub")
+        email = payload.get("email")
+        
+        if not user_id or not email:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        
+        # Find or create user profile
+        user = db.query(UserProfile).filter(UserProfile.id == user_id).first()
+        
+        if not user:
+            # Create new user profile if not exists
+            user = UserProfile(
+                id=user_id,
+                email=email,
+                paid=False,
+                paid_at=None,
+                gumroad_order_id=None
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        
+        return UserProfileResponse(email=user.email, paid=user.paid)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in /api/me endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 

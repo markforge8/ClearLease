@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass
+from sqlalchemy import Column, String, Boolean, DateTime
 
 
 class IngestionInput(BaseModel):
@@ -563,3 +564,47 @@ class GatewayOutput(BaseModel):
         ...,
         description="Detailed information"
     )
+
+
+# ============================================================================
+# User Profile Models
+# ============================================================================
+
+from backend.config.database import Base
+
+
+class UserProfile(Base):
+    """
+    User profile model for database storage.
+    Corresponds to the user_profiles table.
+    """
+    __tablename__ = "user_profiles"
+
+    id = Column(String, primary_key=True, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    paid = Column(Boolean, default=False, nullable=False)
+    paid_at = Column(DateTime, nullable=True)
+    gumroad_order_id = Column(String, nullable=True)
+
+
+class UserProfileResponse(BaseModel):
+    """
+    User profile response model for API output.
+    Used for the /api/me endpoint.
+    """
+    email: str
+    paid: bool
+
+    class Config:
+        from_attributes = True
+
+
+class GumroadWebhookPayload(BaseModel):
+    """
+    Gumroad webhook payload model.
+    Used to parse incoming webhook requests.
+    """
+    buyer_email: str
+    order_id: str
+    product_id: Optional[str] = None
+    event: Optional[str] = None
