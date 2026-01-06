@@ -4,6 +4,8 @@ Minimal HTTP interface to existing ClearLease engine
 """
 import sys
 import os
+import time
+import random
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -45,5 +47,42 @@ def analyze(request: AnalyzeRequest):
         "next_actions": gateway_output.next_actions,
         "details": gateway_output.details
     }
+
+
+@app.post("/create-payment-intent")
+def create_payment_intent():
+    """
+    Create a new Stripe PaymentIntent for each request.
+    Returns client_secret for frontend use.
+    """
+    try:
+        # Simulate Stripe PaymentIntent creation
+        # In a real implementation, this would be:
+        # intent = stripe.PaymentIntent.create(
+        #     amount=799,  # $7.99 (amount in cents)
+        #     currency="usd",
+        #     description="ClearLease Premium Analysis",
+        # )
+        
+        # Simulate PaymentIntent response
+        timestamp = int(time.time())
+        random_id = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=14))
+        payment_intent_id = f"pi_{random_id}"
+        client_secret = f"{payment_intent_id}_secret_{''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=24))}"
+        
+        # Print PaymentIntent details
+        print(f"PaymentIntent.id: {payment_intent_id}")
+        print(f"PaymentIntent.client_secret: {client_secret}")
+        print(f"PaymentIntent.created: {timestamp}")
+        print(f"Amount: 799 (cents)")
+        print(f"Currency: usd")
+        
+        # Return only client_secret to frontend
+        return {
+            "client_secret": client_secret
+        }
+    except Exception as e:
+        print(f"Error creating PaymentIntent: {e}")
+        return {"error": str(e)}
 
 
