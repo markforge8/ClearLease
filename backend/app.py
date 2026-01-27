@@ -150,17 +150,29 @@ async def get_user_status(Authorization: str = Header(...), db: Session = Depend
     Uses Supabase JWT for authentication.
     """
     try:
+        # Print received Authorization header
+        print(f"Received Authorization header: {Authorization}")
+        
         # Extract token from Authorization header
         token = Authorization.replace("Bearer ", "")
+        print(f"Extracted token: {token}")
         
         # Verify and decode JWT
         SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+        print(f"JWT secret configured: {SUPABASE_JWT_SECRET is not None}")
         if not SUPABASE_JWT_SECRET:
             raise HTTPException(status_code=500, detail="JWT secret not configured")
         
-        payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"])
+        try:
+            payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"])
+            print(f"Token decoded successfully: {payload}")
+        except JWTError as e:
+            print(f"JWT decode error: {str(e)}")
+            raise HTTPException(status_code=401, detail=f"Invalid or expired token: {str(e)}")
+        
         user_id = payload.get("sub")
         email = payload.get("email")
+        print(f"Extracted user_id: {user_id}, email: {email}")
         
         if not user_id or not email:
             raise HTTPException(status_code=401, detail="Invalid token payload")
@@ -180,14 +192,64 @@ async def get_user_status(Authorization: str = Header(...), db: Session = Depend
             db.add(user)
             db.commit()
             db.refresh(user)
+            print(f"Created new user profile for {email}")
+        else:
+            print(f"Found existing user profile for {email}")
         
         return UserProfileResponse(email=user.email, paid=user.paid)
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error in /api/me endpoint: {e}")
+        print(f"Error in /api/me endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/api/debug/auth")
+async def debug_auth(Authorization: str = Header(None)):
+    """
+    Debug endpoint for authentication issues.
+    Returns: whether token was received, decode success, and error reason.
+    """
+    result = {
+        "received_token": False,
+        "decode_success": False,
+        "error": None,
+        "payload": None
+    }
+    
+    if Authorization:
+        result["received_token"] = True
+        print(f"Debug auth received Authorization: {Authorization}")
+        
+        try:
+            # Extract token from Authorization header
+            token = Authorization.replace("Bearer ", "")
+            
+            # Verify and decode JWT
+            SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+            if not SUPABASE_JWT_SECRET:
+                result["error"] = "JWT secret not configured"
+                return result
+            
+            payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"])
+            result["decode_success"] = True
+            result["payload"] = {
+                "sub": payload.get("sub"),
+                "email": payload.get("email"),
+                "aud": payload.get("aud"),
+                "exp": payload.get("exp")
+            }
+            print(f"Debug auth decode success: {payload}")
+        except JWTError as e:
+            result["error"] = f"JWT decode error: {str(e)}"
+            print(f"Debug auth JWT error: {str(e)}")
+        except Exception as e:
+            result["error"] = f"Unexpected error: {str(e)}"
+            print(f"Debug auth unexpected error: {str(e)}")
+    else:
+        result["error"] = "No Authorization header provided"
+        print("Debug auth: No Authorization header provided")
+    
+    return result
 
 
