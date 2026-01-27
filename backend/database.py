@@ -4,11 +4,7 @@ Database Initialization
 Handles database table creation and initialization.
 """
 
-from sqlalchemy.ext.declarative import declarative_base
-from backend.config.database import engine
-
-# Create Base class for models
-Base = declarative_base()
+from backend.config.database import engine, Base
 
 
 def init_db():
