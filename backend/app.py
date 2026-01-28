@@ -26,8 +26,9 @@ from backend.config.database import get_db
 from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload, AnalysisDraft, AnalysisDraftResponse
 from backend.utils.password import hash_password, verify_password
 from backend.utils.jwt import create_access_token
-from backend.utils.auth import get_current_user
+from backend.utils.auth import get_current_user, get_current_user_optional
 from pydantic import BaseModel
+from typing import Optional
 import uuid
 import json
 from datetime import datetime
@@ -87,66 +88,65 @@ def health():
 
 
 @app.post("/analyze")
-def analyze(request: AnalyzeRequest, current_user: UserProfile = Depends(get_current_user)):
+def analyze(request: AnalyzeRequest, current_user: Optional[UserProfile] = Depends(get_current_user_optional)):
     """
-    Analyze contract text and create an analysis draft.
+    Analyze contract text and return分层 results based on user's paid status.
+    All users get basic analysis, paid users get full analysis.
     """
-    # Generate analysis_id
-    analysis_id = str(uuid.uuid4())
-    
-    # Run analysis
+    # Run analysis (always execute regardless of paid status)
     gateway_output = run_end_to_end(request.contract_text)
     
-    # Build preview content (1-2 risk items for free users)
-    preview_key_findings = gateway_output.key_findings[:2] if gateway_output.key_findings else []
-    
-    preview = {
+    # Build basic analysis result (for free users)
+    basic_result = {
         "overview": gateway_output.overview,
-        "key_findings": preview_key_findings,
-        "next_actions": gateway_output.next_actions[:1] if gateway_output.next_actions else []
+        "key_findings": gateway_output.key_findings,
+        "next_actions": gateway_output.next_actions
     }
     
-    # Build full analysis
-    full_analysis = {
+    # Build full analysis result (for paid users)
+    full_result = {
         "overview": gateway_output.overview,
         "key_findings": gateway_output.key_findings,
         "next_actions": gateway_output.next_actions,
         "details": gateway_output.details
     }
     
-    # Create analysis draft
-    analysis_draft = AnalysisDraft(
-        id=analysis_id,
-        user_id=current_user.id,
-        contract_text=request.contract_text,
-        preview=json.dumps(preview),
-        full_analysis=json.dumps(full_analysis),
-        locked=True,
-        created_at=datetime.utcnow(),
-        unlocked_at=None
-    )
-    
-    # Save to database
-    db = next(get_db())
-    db.add(analysis_draft)
-    db.commit()
-    db.refresh(analysis_draft)
-    
     # Check if user is paid
-    is_paid = current_user.paid
+    is_paid = current_user.paid if current_user else False
     
-    # If user is paid, unlock the analysis
-    if is_paid:
-        analysis_draft.locked = False
-        analysis_draft.unlocked_at = datetime.utcnow()
+    # Generate analysis_id and save draft for logged-in users
+    analysis_id = None
+    if current_user:
+        analysis_id = str(uuid.uuid4())
+        # Create analysis draft
+        analysis_draft = AnalysisDraft(
+            id=analysis_id,
+            user_id=current_user.id,
+            contract_text=request.contract_text,
+            preview=json.dumps(basic_result),
+            full_analysis=json.dumps(full_result),
+            locked=True,
+            created_at=datetime.utcnow(),
+            unlocked_at=None
+        )
+        # Save to database
+        db = next(get_db())
+        db.add(analysis_draft)
         db.commit()
         db.refresh(analysis_draft)
+        
+        # If user is paid, unlock the analysis
+        if is_paid:
+            analysis_draft.locked = False
+            analysis_draft.unlocked_at = datetime.utcnow()
+            db.commit()
+            db.refresh(analysis_draft)
     
     # Return response
     return {
         "analysis_id": analysis_id,
-        "preview": preview,
-        "full_analysis": full_analysis if is_paid else None,
+        "basic_result": basic_result,
+        "full_result": full_result if is_paid else None,
         "locked": not is_paid
     }
 
