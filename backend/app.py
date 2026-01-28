@@ -256,6 +256,9 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
                 error="Invalid email or password"
             )
         
+        # Print current user email for debugging
+        print("[DEBUG] current user email:", user.email)
+        
         # Perform payment compensation binding check
         # Check if there are existing payment records with paid=true for this email
         existing_payments = db.query(Payment).filter(
@@ -453,45 +456,59 @@ def create_payment_intent():
         return {"error": str(e)}
 
 
+from fastapi import FastAPI, Depends, HTTPException, Header, Request
+
 @app.post("/api/webhook/gumroad")
-async def gumroad_webhook(payload: GumroadWebhookPayload, db: Session = Depends(get_db)):
+async def gumroad_webhook(request: Request, db: Session = Depends(get_db)):
     """
     Handle Gumroad webhook events for sales.
-    Only records payment facts to payments table, does not create or update users.
+    Updates existing user's paid status if user exists.
+    Always returns 200 regardless of outcome.
     """
     try:
-        # Extract buyer email and order ID from payload
-        buyer_email = payload.buyer_email
-        order_id = payload.order_id
+        # Log webhook hit
+        print("[GUMROAD WEBHOOK] Webhook hit")
         
-        print(f"Received Gumroad webhook for email: {buyer_email}, order ID: {order_id}")
+        # Get raw payload
+        payload = await request.json()
+        print("[GUMROAD WEBHOOK] Received raw payload:", payload)
         
-        # Step 1: Unconditionally record payment fact (regardless of user registration)
-        # Check if payment already exists
-        existing_payment = db.query(Payment).filter(Payment.id == order_id).first()
+        # Safely extract buyer_email
+        buyer_email = payload.get("buyer_email")
         
-        if not existing_payment:
-            # Create new payment record
-            payment_id = order_id  # Use order_id as payment id for uniqueness
-            new_payment = Payment(
-                id=payment_id,
-                buyer_email=buyer_email,
-                paid=True,
-                created_at=datetime.utcnow()
-            )
-            db.add(new_payment)
+        # If no buyer_email, return 200
+        if not buyer_email:
+            print("[GUMROAD WEBHOOK] No buyer_email found in payload, returning 200")
+            return {"status": "success"}
+        
+        print(f"[GUMROAD WEBHOOK] Processing webhook for email: {buyer_email}")
+        
+        # Check if user exists with this email
+        user = db.query(UserProfile).filter(UserProfile.email == buyer_email).first()
+        
+        # Initialize update status
+        paid_updated = False
+        
+        if user:
+            # Update user's paid status to true
+            user.paid = True
+            user.paid_at = datetime.utcnow()
             db.commit()
-            print(f"Recorded payment for {buyer_email}, payment ID: {payment_id}")
+            paid_updated = True
+            print(f"[GUMROAD WEBHOOK] Updated paid status for user: {buyer_email}")
         else:
-            print(f"Payment already recorded for {buyer_email}, payment ID: {order_id}")
+            # User doesn't exist, just log
+            print(f"[GUMROAD WEBHOOK] User not found for email: {buyer_email}, skipping paid update")
         
-        # Step 2: Do NOT create or update users here
-        # User unlock (paid=true) will happen during registration or login
+        # Log update status
+        print(f"[GUMROAD WEBHOOK] Paid status updated: {paid_updated}")
         
+        # Always return 200
         return {"status": "success"}
     except Exception as e:
-        print(f"Error processing Gumroad webhook: {e}")
-        # Return success even if there's an error to avoid Gumroad retries
+        # Log any errors
+        print(f"[GUMROAD WEBHOOK] Error processing webhook: {e}")
+        # Still return 200 to avoid Gumroad retries
         return {"status": "success"}
 
 
