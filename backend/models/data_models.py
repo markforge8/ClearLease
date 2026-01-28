@@ -588,11 +588,26 @@ class UserProfile(Base):
     gumroad_order_id = Column(String, nullable=True)
 
 
+class Payment(Base):
+    """
+    Payment model for database storage.
+    Corresponds to the payments table.
+    Records payment facts regardless of user registration status.
+    """
+    __tablename__ = "payments"
+
+    id = Column(String, primary_key=True, unique=True, nullable=False)
+    buyer_email = Column(String, nullable=False, index=True)
+    paid = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class UserProfileResponse(BaseModel):
     """
     User profile response model for API output.
     Used for the /api/me endpoint.
     """
+    id: str
     email: str
     paid: bool
 

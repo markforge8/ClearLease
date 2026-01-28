@@ -12,7 +12,7 @@ def init_db():
     Initialize the database by creating all tables.
     """
     # Import all models here to ensure they are registered with Base
-    from backend.models.data_models import UserProfile, AnalysisDraft
+    from backend.models.data_models import UserProfile, AnalysisDraft, Payment
     
     # Create all tables
     Base.metadata.create_all(bind=engine)

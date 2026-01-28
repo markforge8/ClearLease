@@ -23,7 +23,7 @@ load_dotenv()
 from backend.run_gateway_json_output import run_end_to_end
 from backend.database import init_db
 from backend.config.database import get_db
-from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload, AnalysisDraft, AnalysisDraftResponse
+from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload, AnalysisDraft, AnalysisDraftResponse, Payment
 from backend.utils.password import hash_password, verify_password
 from backend.utils.jwt import create_access_token
 from backend.utils.auth import get_current_user, get_current_user_optional
@@ -155,6 +155,7 @@ def analyze(request: AnalyzeRequest, current_user: Optional[UserProfile] = Depen
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
     """
     Register a new user.
+    Performs payment compensation binding check after successful registration.
     """
     try:
         # Check if email already exists
@@ -182,6 +183,29 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        
+        # Perform payment compensation binding check
+        # Check if there are existing payment records with paid=true for this email
+        existing_payments = db.query(Payment).filter(
+            Payment.buyer_email == request.email,
+            Payment.paid == True
+        ).all()
+        
+        # Log payment binding process
+        print(f"[PAYMENT_BINDING] user={request.email}")
+        print(f"[PAYMENT_BINDING] payment_found={len(existing_payments) > 0}")
+        
+        # If payments exist, update user's paid status
+        user_paid_updated = False
+        if len(existing_payments) > 0:
+            new_user.paid = True
+            new_user.paid_at = datetime.utcnow()
+            db.commit()
+            db.refresh(new_user)
+            user_paid_updated = True
+            print(f"[PAYMENT_BINDING] user_paid_updated={user_paid_updated}")
+        else:
+            print(f"[PAYMENT_BINDING] user_paid_updated={user_paid_updated}")
         
         # Create access token
         access_token = create_access_token(
@@ -214,6 +238,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     """
     User login.
+    Performs payment compensation binding check after successful login.
     """
     try:
         # Find user by email
@@ -230,6 +255,29 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
                 success=False,
                 error="Invalid email or password"
             )
+        
+        # Perform payment compensation binding check
+        # Check if there are existing payment records with paid=true for this email
+        existing_payments = db.query(Payment).filter(
+            Payment.buyer_email == request.email,
+            Payment.paid == True
+        ).all()
+        
+        # Log payment binding process
+        print(f"[PAYMENT_BINDING] user={request.email}")
+        print(f"[PAYMENT_BINDING] payment_found={len(existing_payments) > 0}")
+        
+        # If payments exist and user is not already marked as paid, update user status
+        user_paid_updated = False
+        if len(existing_payments) > 0 and not user.paid:
+            user.paid = True
+            user.paid_at = datetime.utcnow()
+            db.commit()
+            db.refresh(user)
+            user_paid_updated = True
+            print(f"[PAYMENT_BINDING] user_paid_updated={user_paid_updated}")
+        else:
+            print(f"[PAYMENT_BINDING] user_paid_updated={user_paid_updated}")
         
         # Create access token
         access_token = create_access_token(
@@ -409,7 +457,7 @@ def create_payment_intent():
 async def gumroad_webhook(payload: GumroadWebhookPayload, db: Session = Depends(get_db)):
     """
     Handle Gumroad webhook events for sales.
-    Updates user's paid status based on the webhook payload.
+    Only records payment facts to payments table, does not create or update users.
     """
     try:
         # Extract buyer email and order ID from payload
@@ -418,31 +466,27 @@ async def gumroad_webhook(payload: GumroadWebhookPayload, db: Session = Depends(
         
         print(f"Received Gumroad webhook for email: {buyer_email}, order ID: {order_id}")
         
-        # Find user by email in user_profiles
-        user = db.query(UserProfile).filter(UserProfile.email == buyer_email).first()
+        # Step 1: Unconditionally record payment fact (regardless of user registration)
+        # Check if payment already exists
+        existing_payment = db.query(Payment).filter(Payment.id == order_id).first()
         
-        if user:
-            # Update user's paid status
-            user.paid = True
-            user.paid_at = datetime.utcnow()
-            user.gumroad_order_id = order_id
-            db.commit()
-            print(f"Updated user {buyer_email} to paid status, affected rows: 1")
-        else:
-            # Create new user if not found
-            user_id = str(uuid.uuid4())
-            new_user = UserProfile(
-                id=user_id,
-                email=buyer_email,
-                password_hash="",  # Empty password hash for new users
+        if not existing_payment:
+            # Create new payment record
+            payment_id = order_id  # Use order_id as payment id for uniqueness
+            new_payment = Payment(
+                id=payment_id,
+                buyer_email=buyer_email,
                 paid=True,
-                paid_at=datetime.utcnow(),
-                gumroad_order_id=order_id
+                created_at=datetime.utcnow()
             )
-            db.add(new_user)
+            db.add(new_payment)
             db.commit()
-            db.refresh(new_user)
-            print(f"Created new user {buyer_email} with paid status, affected rows: 1")
+            print(f"Recorded payment for {buyer_email}, payment ID: {payment_id}")
+        else:
+            print(f"Payment already recorded for {buyer_email}, payment ID: {order_id}")
+        
+        # Step 2: Do NOT create or update users here
+        # User unlock (paid=true) will happen during registration or login
         
         return {"status": "success"}
     except Exception as e:
@@ -451,11 +495,12 @@ async def gumroad_webhook(payload: GumroadWebhookPayload, db: Session = Depends(
         return {"status": "success"}
 
 
-@app.get("/api/me", response_model=UserProfileResponse)
+@app.get("/api/me", response_model=dict)
 async def get_user_status(Authorization: str = Header(...), db: Session = Depends(get_db)):
     """
     Get current user's status including paid status.
     Uses Supabase JWT for authentication.
+    Returns complete user identity information including id, email, and paid.
     """
     try:
         # Print received Authorization header
@@ -504,12 +549,23 @@ async def get_user_status(Authorization: str = Header(...), db: Session = Depend
         else:
             print(f"Found existing user profile for {email}")
         
-        return UserProfileResponse(email=user.email, paid=user.paid)
+        # Return response in the required format
+        return {
+            "success": True,
+            "data": {
+                "id": user.id,
+                "email": user.email,
+                "paid": user.paid
+            }
+        }
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error in /api/me endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        return {
+            "success": False,
+            "error": "Internal server error"
+        }
 
 
 @app.get("/api/debug/auth")
