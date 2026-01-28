@@ -488,7 +488,6 @@ async def gumroad_webhook(request: Request, db: Session = Depends(get_db)):
         
         # Initialize update status
         paid_updated = False
-        user_created = False
         
         # Check if this is a test order
         is_test_order = form.get("test") == "true"
@@ -507,34 +506,9 @@ async def gumroad_webhook(request: Request, db: Session = Depends(get_db)):
             paid_updated = True
             print(f"[GUMROAD WEBHOOK] Updated paid status for user: {user_email}")
         else:
-            # User doesn't exist, create new user with paid=true
-            try:
-                # Generate user ID
-                user_id = str(uuid.uuid4())
-                # Generate dummy password hash (users created via webhook won't log in)
-                dummy_password = "gumroad_webhook_auto_create"
-                hashed_password = hash_password(dummy_password)
-                # Get order ID if provided
-                order_id = form.get("order_id")
-                
-                # Create new user
-                new_user = UserProfile(
-                    id=user_id,
-                    email=user_email,
-                    password_hash=hashed_password,
-                    paid=True,
-                    paid_at=datetime.utcnow(),
-                    gumroad_order_id=order_id
-                )
-                db.add(new_user)
-                db.commit()
-                paid_updated = True
-                user_created = True
-                print(f"[GUMROAD WEBHOOK] Created new user with paid=true: {user_email}")
-            except Exception as e:
-                print(f"[GUMROAD WEBHOOK] Error creating new user: {e}")
-                # Still return 200 even if user creation fails
-                paid_updated = False
+            # User doesn't exist, just log
+            print(f"[GUMROAD WEBHOOK] User not found for email: {user_email}, skipping paid update")
+            paid_updated = False
         
         # Log update status
         print(f"[GUMROAD WEBHOOK] Paid status updated: {paid_updated}")
