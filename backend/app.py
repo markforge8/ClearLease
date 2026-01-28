@@ -313,9 +313,14 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 def get_me(current_user: UserProfile = Depends(get_current_user)):
     """
     Get current user information.
+    Returns user's paid status from database.
     """
     try:
-        # Return user information
+        # Log that we're retrieving paid status from database
+        print(f"[ME ENDPOINT] Retrieving paid status for user: {current_user.email}")
+        print(f"[ME ENDPOINT] Current paid status: {current_user.paid}")
+        
+        # Return user information including paid status
         return AuthResponse(
             success=True,
             data={
@@ -473,21 +478,45 @@ async def gumroad_webhook(request: Request, db: Session = Depends(get_db)):
         form = await request.form()
         print("[GUMROAD WEBHOOK] Received form data:", dict(form))
         
-        # Use form.get("email") to find user
-        user_email = form.get("email")
+        # Extract all possible email fields from webhook
+        email_fields = {
+            "email": form.get("email"),
+            "purchaser_email": form.get("purchaser_email"),
+            "buyer_email": form.get("buyer_email")
+        }
+        print("[GUMROAD WEBHOOK] All email fields:", email_fields)
+        
+        # Determine the email to use for user lookup
+        # Priority: email > purchaser_email > buyer_email
+        user_email = form.get("email") or form.get("purchaser_email") or form.get("buyer_email")
+        
+        print("[GUMROAD WEBHOOK] Final email used for lookup:", user_email)
         
         # If no email, return 200
         if not user_email:
             print("[GUMROAD WEBHOOK] No email found in form data, returning 200")
             return {"status": "success"}
         
-        print(f"[GUMROAD WEBHOOK] Processing webhook for email: {user_email}")
-        
         # Check if user exists with this email
         user = db.query(UserProfile).filter(UserProfile.email == user_email).first()
         
         # Initialize update status
         paid_updated = False
+        user_found = user is not None
+        
+        print("[GUMROAD WEBHOOK] User found in database:", user_found)
+        
+        # If user not found, print all user emails in database (for development only)
+        if not user:
+            print("[GUMROAD WEBHOOK] ==== DEVELOPMENT ONLY ====")
+            all_users = db.query(UserProfile).all()
+            if all_users:
+                print("[GUMROAD WEBHOOK] All users in database:")
+                for u in all_users:
+                    print(f"[GUMROAD WEBHOOK] - {u.email}")
+            else:
+                print("[GUMROAD WEBHOOK] No users found in database")
+            print("[GUMROAD WEBHOOK] ========================")
         
         # Check if this is a test order
         is_test_order = form.get("test") == "true"
