@@ -45,6 +45,7 @@ app.add_middleware(
     allow_origins=[
         "https://clearlease-frontend.vercel.app",
         "http://localhost:3000",  # 开发环境
+        "https://clearlease-production.up.railway.app"  # Railway 公网域名
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -358,6 +359,73 @@ def get_current_analysis(current_user: UserProfile = Depends(get_current_user)):
         
     except Exception as e:
         print(f"Error in get_current_analysis endpoint: {str(e)}")
+        return {
+            "success": False,
+            "error": "Internal server error"
+        }
+
+
+@app.post("/api/activate-paid")
+def activate_paid(current_user: UserProfile = Depends(get_current_user)):
+    """
+    Activate paid status for the current user.
+    Mark user as paid and unlock latest analysis draft.
+    """
+    try:
+        # Get database session
+        db = next(get_db())
+        
+        # Mark user as paid
+        current_user.paid = True
+        current_user.paid_at = datetime.utcnow()
+        db.commit()
+        db.refresh(current_user)
+        
+        # Find the latest locked analysis draft for this user
+        latest_draft = db.query(AnalysisDraft).filter(
+            AnalysisDraft.user_id == current_user.id,
+            AnalysisDraft.locked == True
+        ).order_by(
+            AnalysisDraft.created_at.desc()
+        ).first()
+        
+        # If draft found, unlock it
+        if latest_draft:
+            latest_draft.locked = False
+            latest_draft.unlocked_at = datetime.utcnow()
+            db.commit()
+            db.refresh(latest_draft)
+            
+            # Parse preview and full analysis from JSON strings
+            preview = json.loads(latest_draft.preview)
+            full_analysis = json.loads(latest_draft.full_analysis) if latest_draft.full_analysis else None
+            
+            # Return response with unlocked analysis
+            return {
+                "success": True,
+                "data": {
+                    "user_paid": True,
+                    "analysis_id": latest_draft.id,
+                    "preview": preview,
+                    "full_analysis": full_analysis,
+                    "locked": False
+                }
+            }
+        else:
+            # Return response without analysis
+            return {
+                "success": True,
+                "data": {
+                    "user_paid": True,
+                    "analysis_id": None,
+                    "preview": None,
+                    "full_analysis": None,
+                    "locked": False
+                }
+            }
+        
+    except Exception as e:
+        print(f"Error in activate_paid endpoint: {str(e)}")
         return {
             "success": False,
             "error": "Internal server error"
