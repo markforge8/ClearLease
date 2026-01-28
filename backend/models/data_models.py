@@ -582,6 +582,7 @@ class UserProfile(Base):
 
     id = Column(String, primary_key=True, unique=True, nullable=False)
     email = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
     paid = Column(Boolean, default=False, nullable=False)
     paid_at = Column(DateTime, nullable=True)
     gumroad_order_id = Column(String, nullable=True)

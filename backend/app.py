@@ -24,6 +24,11 @@ from backend.run_gateway_json_output import run_end_to_end
 from backend.database import init_db
 from backend.config.database import get_db
 from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload
+from backend.utils.password import hash_password, verify_password
+from backend.utils.jwt import create_access_token
+from backend.utils.auth import get_current_user
+from pydantic import BaseModel
+import uuid
 
 import os
 
@@ -37,6 +42,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://clearlease-frontend.vercel.app",
+        "http://localhost:3000",  # 开发环境
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -56,6 +62,22 @@ class AnalyzeRequest(BaseModel):
     contract_text: str
 
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    success: bool
+    data: dict = None
+    error: str = None
+
+
 @app.get("/health")
 def health():
     return "ok"
@@ -70,6 +92,162 @@ def analyze(request: AnalyzeRequest):
         "next_actions": gateway_output.next_actions,
         "details": gateway_output.details
     }
+
+
+@app.post("/api/auth/register", response_model=AuthResponse)
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    """
+    Register a new user.
+    """
+    try:
+        # Check if email already exists
+        existing_user = db.query(UserProfile).filter(UserProfile.email == request.email).first()
+        if existing_user:
+            return AuthResponse(
+                success=False,
+                error="Email already exists"
+            )
+        
+        # Hash password
+        hashed_password = hash_password(request.password)
+        
+        # Create new user
+        user_id = str(uuid.uuid4())
+        new_user = UserProfile(
+            id=user_id,
+            email=request.email,
+            password_hash=hashed_password,
+            paid=False,
+            paid_at=None,
+            gumroad_order_id=None
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": new_user.id, "email": new_user.email}
+        )
+        
+        # Return response
+        return AuthResponse(
+            success=True,
+            data={
+                "token": access_token,
+                "user": {
+                    "id": new_user.id,
+                    "email": new_user.email,
+                    "paid": new_user.paid,
+                    "paid_at": new_user.paid_at
+                }
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in register endpoint: {str(e)}")
+        return AuthResponse(
+            success=False,
+            error="Internal server error"
+        )
+
+
+@app.post("/api/auth/login", response_model=AuthResponse)
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    """
+    User login.
+    """
+    try:
+        # Find user by email
+        user = db.query(UserProfile).filter(UserProfile.email == request.email).first()
+        if not user:
+            return AuthResponse(
+                success=False,
+                error="Invalid email or password"
+            )
+        
+        # Verify password
+        if not verify_password(request.password, user.password_hash):
+            return AuthResponse(
+                success=False,
+                error="Invalid email or password"
+            )
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": user.id, "email": user.email}
+        )
+        
+        # Return response
+        return AuthResponse(
+            success=True,
+            data={
+                "token": access_token,
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "paid": user.paid,
+                    "paid_at": user.paid_at
+                }
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in login endpoint: {str(e)}")
+        return AuthResponse(
+            success=False,
+            error="Internal server error"
+        )
+
+
+@app.get("/api/auth/me", response_model=AuthResponse)
+def get_me(current_user: UserProfile = Depends(get_current_user)):
+    """
+    Get current user information.
+    """
+    try:
+        # Return user information
+        return AuthResponse(
+            success=True,
+            data={
+                "id": current_user.id,
+                "email": current_user.email,
+                "paid": current_user.paid,
+                "paid_at": current_user.paid_at
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in get_me endpoint: {str(e)}")
+        return AuthResponse(
+            success=False,
+            error="Internal server error"
+        )
+
+
+@app.post("/api/auth/logout", response_model=AuthResponse)
+def logout(current_user: UserProfile = Depends(get_current_user)):
+    """
+    User logout.
+    """
+    try:
+        # For JWT, logout is primarily handled on the client side
+        # by removing the token from storage. This endpoint serves
+        # as a confirmation and can be used for any server-side
+        # logout logic if needed in the future.
+        
+        return AuthResponse(
+            success=True,
+            data={"message": "Logged out successfully"}
+        )
+        
+    except Exception as e:
+        print(f"Error in logout endpoint: {str(e)}")
+        return AuthResponse(
+            success=False,
+            error="Internal server error"
+        )
 
 
 @app.post("/create-payment-intent")
