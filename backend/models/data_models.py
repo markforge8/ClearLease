@@ -600,6 +600,41 @@ class UserProfileResponse(BaseModel):
         from_attributes = True
 
 
+# ============================================================================
+# Analysis Draft Models
+# ============================================================================
+
+
+class AnalysisDraft(Base):
+    """
+    Analysis draft model for database storage.
+    Corresponds to the analysis_drafts table.
+    """
+    __tablename__ = "analysis_drafts"
+
+    id = Column(String, primary_key=True, unique=True, nullable=False)
+    user_id = Column(String, nullable=True)
+    contract_text = Column(String, nullable=False)
+    preview = Column(String, nullable=False)  # JSON string
+    full_analysis = Column(String, nullable=True)  # JSON string
+    locked = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    unlocked_at = Column(DateTime, nullable=True)
+
+
+class AnalysisDraftResponse(BaseModel):
+    """
+    Analysis draft response model for API output.
+    """
+    analysis_id: str
+    preview: dict
+    locked: bool
+    full_analysis: dict = None
+
+    class Config:
+        from_attributes = True
+
+
 class GumroadWebhookPayload(BaseModel):
     """
     Gumroad webhook payload model.

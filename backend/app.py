@@ -23,12 +23,14 @@ load_dotenv()
 from backend.run_gateway_json_output import run_end_to_end
 from backend.database import init_db
 from backend.config.database import get_db
-from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload
+from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload, AnalysisDraft, AnalysisDraftResponse
 from backend.utils.password import hash_password, verify_password
 from backend.utils.jwt import create_access_token
 from backend.utils.auth import get_current_user
 from pydantic import BaseModel
 import uuid
+import json
+from datetime import datetime
 
 import os
 
@@ -84,13 +86,67 @@ def health():
 
 
 @app.post("/analyze")
-def analyze(request: AnalyzeRequest):
+def analyze(request: AnalyzeRequest, current_user: UserProfile = Depends(get_current_user)):
+    """
+    Analyze contract text and create an analysis draft.
+    """
+    # Generate analysis_id
+    analysis_id = str(uuid.uuid4())
+    
+    # Run analysis
     gateway_output = run_end_to_end(request.contract_text)
-    return {
+    
+    # Build preview content (1-2 risk items for free users)
+    preview_key_findings = gateway_output.key_findings[:2] if gateway_output.key_findings else []
+    
+    preview = {
+        "overview": gateway_output.overview,
+        "key_findings": preview_key_findings,
+        "next_actions": gateway_output.next_actions[:1] if gateway_output.next_actions else []
+    }
+    
+    # Build full analysis
+    full_analysis = {
         "overview": gateway_output.overview,
         "key_findings": gateway_output.key_findings,
         "next_actions": gateway_output.next_actions,
         "details": gateway_output.details
+    }
+    
+    # Create analysis draft
+    analysis_draft = AnalysisDraft(
+        id=analysis_id,
+        user_id=current_user.id,
+        contract_text=request.contract_text,
+        preview=json.dumps(preview),
+        full_analysis=json.dumps(full_analysis),
+        locked=True,
+        created_at=datetime.utcnow(),
+        unlocked_at=None
+    )
+    
+    # Save to database
+    db = next(get_db())
+    db.add(analysis_draft)
+    db.commit()
+    db.refresh(analysis_draft)
+    
+    # Check if user is paid
+    is_paid = current_user.paid
+    
+    # If user is paid, unlock the analysis
+    if is_paid:
+        analysis_draft.locked = False
+        analysis_draft.unlocked_at = datetime.utcnow()
+        db.commit()
+        db.refresh(analysis_draft)
+    
+    # Return response
+    return {
+        "analysis_id": analysis_id,
+        "preview": preview,
+        "full_analysis": full_analysis if is_paid else None,
+        "locked": not is_paid
     }
 
 
@@ -248,6 +304,64 @@ def logout(current_user: UserProfile = Depends(get_current_user)):
             success=False,
             error="Internal server error"
         )
+
+
+@app.get("/api/analysis/current")
+def get_current_analysis(current_user: UserProfile = Depends(get_current_user)):
+    """
+    Get the current user's latest analysis draft.
+    If user is paid, unlock and return full analysis.
+    """
+    try:
+        # Get database session
+        db = next(get_db())
+        
+        # Find the latest locked analysis draft for this user
+        latest_draft = db.query(AnalysisDraft).filter(
+            AnalysisDraft.user_id == current_user.id,
+            AnalysisDraft.locked == True
+        ).order_by(
+            AnalysisDraft.created_at.desc()
+        ).first()
+        
+        # If no draft found, return error
+        if not latest_draft:
+            return {
+                "success": False,
+                "error": "No analysis draft found"
+            }
+        
+        # Check if user is paid
+        is_paid = current_user.paid
+        
+        # Parse preview and full analysis from JSON strings
+        preview = json.loads(latest_draft.preview)
+        full_analysis = json.loads(latest_draft.full_analysis) if latest_draft.full_analysis else None
+        
+        # If user is paid, unlock the analysis
+        if is_paid:
+            latest_draft.locked = False
+            latest_draft.unlocked_at = datetime.utcnow()
+            db.commit()
+            db.refresh(latest_draft)
+        
+        # Return response
+        return {
+            "success": True,
+            "data": {
+                "analysis_id": latest_draft.id,
+                "preview": preview,
+                "full_analysis": full_analysis if is_paid else None,
+                "locked": not is_paid
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error in get_current_analysis endpoint: {str(e)}")
+        return {
+            "success": False,
+            "error": "Internal server error"
+        }
 
 
 @app.post("/create-payment-intent")
