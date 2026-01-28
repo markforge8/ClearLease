@@ -8,7 +8,7 @@ conn = sqlite3.connect('clearlease.db')
 cursor = conn.cursor()
 
 # Execute the query to check user's paid status
-cursor.execute("SELECT id, email, paid FROM user_profiles WHERE email = 'testuser@example.com';")
+cursor.execute("SELECT id, email, paid FROM user_profiles WHERE email = 'newuser@example.com';")
 
 # Fetch the result
 result = cursor.fetchone()
