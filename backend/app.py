@@ -427,10 +427,22 @@ async def gumroad_webhook(payload: GumroadWebhookPayload, db: Session = Depends(
             user.paid_at = datetime.utcnow()
             user.gumroad_order_id = order_id
             db.commit()
-            print(f"Updated user {buyer_email} to paid status")
+            print(f"Updated user {buyer_email} to paid status, affected rows: 1")
         else:
-            # Log if user not found, but don't error
-            print(f"User not found for email: {buyer_email}")
+            # Create new user if not found
+            user_id = str(uuid.uuid4())
+            new_user = UserProfile(
+                id=user_id,
+                email=buyer_email,
+                password_hash="",  # Empty password hash for new users
+                paid=True,
+                paid_at=datetime.utcnow(),
+                gumroad_order_id=order_id
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            print(f"Created new user {buyer_email} with paid status, affected rows: 1")
         
         return {"status": "success"}
     except Exception as e:
