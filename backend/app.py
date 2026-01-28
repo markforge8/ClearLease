@@ -469,22 +469,22 @@ async def gumroad_webhook(request: Request, db: Session = Depends(get_db)):
         # Log webhook hit
         print("[GUMROAD WEBHOOK] Webhook hit")
         
-        # Get raw payload
-        payload = await request.json()
-        print("[GUMROAD WEBHOOK] Received raw payload:", payload)
+        # Get form data instead of JSON
+        form = await request.form()
+        print("[GUMROAD WEBHOOK] Received form data:", dict(form))
         
-        # Safely extract buyer_email
-        buyer_email = payload.get("buyer_email")
+        # Use form.get("email") to find user
+        user_email = form.get("email")
         
-        # If no buyer_email, return 200
-        if not buyer_email:
-            print("[GUMROAD WEBHOOK] No buyer_email found in payload, returning 200")
+        # If no email, return 200
+        if not user_email:
+            print("[GUMROAD WEBHOOK] No email found in form data, returning 200")
             return {"status": "success"}
         
-        print(f"[GUMROAD WEBHOOK] Processing webhook for email: {buyer_email}")
+        print(f"[GUMROAD WEBHOOK] Processing webhook for email: {user_email}")
         
         # Check if user exists with this email
-        user = db.query(UserProfile).filter(UserProfile.email == buyer_email).first()
+        user = db.query(UserProfile).filter(UserProfile.email == user_email).first()
         
         # Initialize update status
         paid_updated = False
@@ -495,10 +495,10 @@ async def gumroad_webhook(request: Request, db: Session = Depends(get_db)):
             user.paid_at = datetime.utcnow()
             db.commit()
             paid_updated = True
-            print(f"[GUMROAD WEBHOOK] Updated paid status for user: {buyer_email}")
+            print(f"[GUMROAD WEBHOOK] Updated paid status for user: {user_email}")
         else:
             # User doesn't exist, just log
-            print(f"[GUMROAD WEBHOOK] User not found for email: {buyer_email}, skipping paid update")
+            print(f"[GUMROAD WEBHOOK] User not found for email: {user_email}, skipping paid update")
         
         # Log update status
         print(f"[GUMROAD WEBHOOK] Paid status updated: {paid_updated}")
