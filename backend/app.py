@@ -363,6 +363,37 @@ def logout(current_user: UserProfile = Depends(get_current_user)):
         )
 
 
+@app.post("/api/dev/reset-paid")
+def reset_paid(current_user: UserProfile = Depends(get_current_user)):
+    """
+    Reset current user's paid status. Only available in development/staging environments.
+    """
+    try:
+        # Check if environment is development or staging
+        env = os.getenv("ENVIRONMENT", "development")
+        if env not in ["development", "staging"]:
+            return {"success": False, "error": "This endpoint is only available in development environments"}
+        
+        # Get database session
+        db = next(get_db())
+        
+        # Reset user's paid status
+        user = db.query(UserProfile).filter(UserProfile.id == current_user.id).first()
+        if user:
+            user.paid = False
+            user.paid_at = None
+            user.gumroad_order_id = None
+            db.commit()
+            print(f"[DEV RESET] Reset paid status for user: {user.email}")
+            return {"success": True}
+        else:
+            return {"success": False, "error": "User not found"}
+        
+    except Exception as e:
+        print(f"Error in reset-paid endpoint: {str(e)}")
+        return {"success": False, "error": "Internal server error"}
+
+
 @app.get("/api/analysis/current")
 def get_current_analysis(current_user: UserProfile = Depends(get_current_user)):
     """
