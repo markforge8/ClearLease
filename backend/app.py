@@ -44,6 +44,219 @@ from fastapi import APIRouter
 public_auth_router = APIRouter(prefix="/api/auth")
 protected_auth_router = APIRouter(prefix="/api/auth")
 
+# ===== ROUTE FUNCTION DEFINITIONS =====
+# These must come BEFORE create_app() call
+
+@public_auth_router.post("/register", response_model=AuthResponse)
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    """
+    Register a new user.
+    Performs payment compensation binding check after successful registration.
+    """
+    try:
+        # Check if email already exists
+        existing_user = db.query(UserProfile).filter(UserProfile.email == request.email).first()
+        if existing_user:
+            return AuthResponse(
+                success=False,
+                error="Email already exists"
+            )
+        
+        # Hash password
+        hashed_password = hash_password(request.password)
+        
+        # Create new user
+        user_id = str(uuid.uuid4())
+        new_user = UserProfile(
+            id=user_id,
+            email=request.email,
+            password_hash=hashed_password,
+            paid=False,
+            paid_at=None,
+            gumroad_order_id=None
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        # Perform payment compensation binding check
+        # Check if there are existing payment records with paid=true for this email
+        existing_payments = db.query(Payment).filter(
+            Payment.buyer_email == request.email,
+            Payment.paid == True
+        ).all()
+        
+        # Log payment binding process
+        print(f"[PAYMENT_BINDING] user={request.email}")
+        print(f"[PAYMENT_BINDING] payment_found={len(existing_payments) > 0}")
+        
+        # If payments exist, update user's paid status
+        user_paid_updated = False
+        if len(existing_payments) > 0:
+            new_user.paid = True
+            new_user.paid_at = datetime.utcnow()
+            db.commit()
+            db.refresh(new_user)
+            user_paid_updated = True
+            print(f"[PAYMENT_BINDING] user_paid_updated={user_paid_updated}")
+        else:
+            print(f"[PAYMENT_BINDING] user_paid_updated={user_paid_updated}")
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": new_user.id, "email": new_user.email}
+        )
+        
+        # Return response
+        return AuthResponse(
+            success=True,
+            data={
+                "token": access_token,
+                "user": {
+                    "id": new_user.id,
+                    "email": new_user.email,
+                    "paid": new_user.paid,
+                    "paid_at": new_user.paid_at
+                }
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in register endpoint: {str(e)}")
+        return AuthResponse(
+            success=False,
+            error="Internal server error"
+        )
+
+@public_auth_router.post("/login", response_model=AuthResponse)
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    """
+    User login.
+    Performs payment compensation binding check after successful login.
+    """
+    try:
+        # Find user by email
+        user = db.query(UserProfile).filter(UserProfile.email == request.email).first()
+        if not user:
+            return AuthResponse(
+                success=False,
+                error="Invalid email or password"
+            )
+        
+        # Verify password
+        if not verify_password(request.password, user.password_hash):
+            return AuthResponse(
+                success=False,
+                error="Invalid email or password"
+            )
+        
+        # Print current user email for debugging
+        print("[DEBUG] current user email:", user.email)
+        
+        # Perform payment compensation binding check
+        # Check if there are existing payment records with paid=true for this email
+        existing_payments = db.query(Payment).filter(
+            Payment.buyer_email == request.email,
+            Payment.paid == True
+        ).all()
+        
+        # Log payment binding process
+        print(f"[PAYMENT_BINDING] user={request.email}")
+        print(f"[PAYMENT_BINDING] payment_found={len(existing_payments) > 0}")
+        
+        # If payments exist and user is not already marked as paid, update user status
+        user_paid_updated = False
+        if len(existing_payments) > 0 and not user.paid:
+            user.paid = True
+            user.paid_at = datetime.utcnow()
+            db.commit()
+            db.refresh(user)
+            user_paid_updated = True
+            print(f"[PAYMENT_BINDING] user_paid_updated={user_paid_updated}")
+        else:
+            print(f"[PAYMENT_BINDING] user_paid_updated={user_paid_updated}")
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": user.id, "email": user.email}
+        )
+        
+        # Return response
+        return AuthResponse(
+            success=True,
+            data={
+                "token": access_token,
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "paid": user.paid,
+                    "paid_at": user.paid_at
+                }
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in login endpoint: {str(e)}")
+        return AuthResponse(
+            success=False,
+            error="Internal server error"
+        )
+
+@protected_auth_router.get("/me", response_model=AuthResponse)
+def get_me(current_user: UserProfile = Depends(get_current_user)):
+    """
+    Get current user information.
+    Returns user's paid status from database.
+    """
+    try:
+        # Log that we're retrieving paid status from database
+        print(f"[ME ENDPOINT] Retrieving paid status for user: {current_user.email}")
+        print(f"[ME ENDPOINT] Current paid status: {current_user.paid}")
+        
+        # Return user information including paid status
+        return AuthResponse(
+            success=True,
+            data={
+                "id": current_user.id,
+                "email": current_user.email,
+                "paid": current_user.paid,
+                "paid_at": current_user.paid_at
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in get_me endpoint: {str(e)}")
+        return AuthResponse(
+            success=False,
+            error="Internal server error"
+        )
+
+@protected_auth_router.post("/logout", response_model=AuthResponse)
+def logout(current_user: UserProfile = Depends(get_current_user)):
+    """
+    User logout.
+    """
+    try:
+        # For JWT, logout is primarily handled on the client side
+        # by removing the token from storage. This endpoint serves
+        # as a confirmation and can be used for any server-side
+        # logout logic if needed in the future.
+        
+        return AuthResponse(
+            success=True,
+            data={"message": "Logged out successfully"}
+        )
+        
+    except Exception as e:
+        print(f"Error in logout endpoint: {str(e)}")
+        return AuthResponse(
+            success=False,
+            error="Internal server error"
+        )
+
+# ===== END ROUTE FUNCTION DEFINITIONS =====
+
 # Application factory pattern
 def create_app():
     """Create and configure the FastAPI application"""
