@@ -45,6 +45,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://clearlease-frontend.vercel.app",
+        "https://*.vercel.app",  # 所有 Vercel Preview 域名
         "http://localhost:3000",  # 开发环境
         "https://clearlease-production.up.railway.app"  # Railway 公网域名
     ],
