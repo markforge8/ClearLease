@@ -713,3 +713,19 @@ async def debug_auth(Authorization: str = Header(None)):
     return result
 
 
+@app.get("/api/debug/routes")
+async def debug_routes():
+    """
+    Debug endpoint to list all registered routes in the running app.
+    """
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "path") and hasattr(route, "methods"):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods),
+                "name": route.name
+            })
+    return {"routes": routes}
+
+
