@@ -55,6 +55,13 @@ app.add_middleware(
 )
 
 
+# Global OPTIONS handler to handle preflight requests
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    """Handle OPTIONS preflight requests globally"""
+    return {}
+
+
 @app.on_event("startup")
 async def startup_event():
     """
