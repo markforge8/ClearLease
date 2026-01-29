@@ -285,13 +285,7 @@ def create_app():
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "https://clearlease-frontend.vercel.app",
-            "https://clearlease-frontend-ce76hevcm-mark-forges-projects.vercel.app",  # 前端部署域名
-            "https://clearlease-frontend-528y8dz3f-mark-forges-projects.vercel.app",  # 新前端部署域名
-            "http://localhost:3000",  # 开发环境
-            "https://clearlease-production.up.railway.app"  # Railway 公网域名
-        ],
+        allow_origins=["*"],  # 开发阶段允许所有域名访问
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -993,6 +987,46 @@ async def debug_routes():
                 "name": route.name
             })
     return {"routes": routes}
+
+
+@app.get("/history")
+def get_history(current_user: UserProfile = Depends(get_current_user)):
+    """
+    Get current user's recent analysis history.
+    Returns the latest 20 analysis records.
+    """
+    try:
+        # Get database session
+        db = next(get_db())
+        
+        # Import AnalysisResult model
+        from backend.models.data_models import AnalysisResult
+        
+        # Get recent analysis results for current user
+        recent_results = db.query(AnalysisResult).filter(
+            AnalysisResult.user_id == current_user.id
+        ).order_by(AnalysisResult.created_at.desc()).limit(20).all()
+        
+        # Format results
+        history = []
+        for result in recent_results:
+            history.append({
+                "id": result.id,
+                "created_at": result.created_at.isoformat(),
+                "risk_level": result.risk_level,
+                "summary": result.summary,
+                "source_type": result.source_type
+            })
+        
+        return {
+            "history": history
+        }
+        
+    except Exception as e:
+        print(f"Error in history endpoint: {str(e)}")
+        return {
+            "error": "Failed to retrieve history"
+        }
 
 
 @app.get("/export/pdf")
