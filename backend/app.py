@@ -28,8 +28,6 @@ from backend.models.data_models import UserProfile, UserProfileResponse, Gumroad
 from backend.utils.password import hash_password, verify_password
 from backend.utils.jwt import create_access_token
 from backend.utils.auth import get_current_user, get_current_user_optional
-from pydantic import BaseModel
-from typing import Optional
 import uuid
 import json
 from datetime import datetime
@@ -41,6 +39,7 @@ PORT = int(os.getenv("PORT", "8080"))
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,12 +54,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Create routers
+public_auth_router = APIRouter(prefix="/api/auth")
+protected_auth_router = APIRouter(prefix="/api/auth")
 
-# Global OPTIONS handler to handle preflight requests
-@app.options("/{path:path}")
-async def options_handler(path: str):
-    """Handle OPTIONS preflight requests globally"""
-    return {}
+# Include routers
+app.include_router(public_auth_router)
+app.include_router(protected_auth_router)
 
 
 @app.on_event("startup")
@@ -160,7 +160,7 @@ def analyze(request: AnalyzeRequest, current_user: Optional[UserProfile] = Depen
     }
 
 
-@app.post("/api/auth/register", response_model=AuthResponse)
+@public_auth_router.post("/register", response_model=AuthResponse)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
     """
     Register a new user.
@@ -243,7 +243,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         )
 
 
-@app.post("/api/auth/login", response_model=AuthResponse)
+@public_auth_router.post("/login", response_model=AuthResponse)
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     """
     User login.
@@ -318,7 +318,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         )
 
 
-@app.get("/api/auth/me", response_model=AuthResponse)
+@protected_auth_router.get("/me", response_model=AuthResponse)
 def get_me(current_user: UserProfile = Depends(get_current_user)):
     """
     Get current user information.
@@ -348,7 +348,7 @@ def get_me(current_user: UserProfile = Depends(get_current_user)):
         )
 
 
-@app.post("/api/auth/logout", response_model=AuthResponse)
+@protected_auth_router.post("/logout", response_model=AuthResponse)
 def logout(current_user: UserProfile = Depends(get_current_user)):
     """
     User logout.
@@ -592,7 +592,7 @@ async def gumroad_webhook(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/api/me", response_model=dict)
-async def get_user_status(Authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
+async def get_user_status(Authorization: str = Header(...), db: Session = Depends(get_db)):
     """
     Get current user's status including paid status.
     Uses Supabase JWT for authentication.
@@ -601,10 +601,6 @@ async def get_user_status(Authorization: Optional[str] = Header(None), db: Sessi
     try:
         # Print received Authorization header
         print(f"Received Authorization header: {Authorization}")
-        
-        # Check if Authorization header is provided
-        if not Authorization:
-            raise HTTPException(status_code=401, detail="Authorization header required")
         
         # Extract token from Authorization header
         token = Authorization.replace("Bearer ", "")
