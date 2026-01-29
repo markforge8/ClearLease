@@ -10,4 +10,5 @@ psycopg2-binary
 pdfplumber
 pytesseract
 Pillow
+fpdf2
 

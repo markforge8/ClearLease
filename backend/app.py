@@ -14,6 +14,8 @@ from jose import JWTError, jwt
 from dotenv import load_dotenv
 from typing import Optional
 from fastapi import UploadFile, File
+from fastapi.responses import StreamingResponse
+import io
 
 # Fix Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -286,6 +288,7 @@ def create_app():
         allow_origins=[
             "https://clearlease-frontend.vercel.app",
             "https://clearlease-frontend-ce76hevcm-mark-forges-projects.vercel.app",  # 前端部署域名
+            "https://clearlease-frontend-528y8dz3f-mark-forges-projects.vercel.app",  # 新前端部署域名
             "http://localhost:3000",  # 开发环境
             "https://clearlease-production.up.railway.app"  # Railway 公网域名
         ],
@@ -385,6 +388,34 @@ def analyze(request: AnalyzeRequest, current_user: Optional[UserProfile] = Depen
             analysis_draft.unlocked_at = datetime.utcnow()
             db.commit()
             db.refresh(analysis_draft)
+        
+        # Save analysis result to AnalysisResult table
+        from backend.models.data_models import AnalysisResult
+        
+        # Extract risk level and summary
+        risk_level = gateway_output.overview.get('risk_level', 'medium')
+        summary = gateway_output.overview.get('summary', 'Analysis completed')
+        
+        # Create analysis result
+        analysis_result = AnalysisResult(
+            id=str(uuid.uuid4()),
+            user_id=current_user.id,
+            created_at=datetime.utcnow(),
+            risk_level=risk_level,
+            summary=summary,
+            source_type="text"  # Default source type
+        )
+        db.add(analysis_result)
+        db.commit()
+        
+        # Keep only the latest 20 records for this user
+        user_results = db.query(AnalysisResult).filter(
+            AnalysisResult.user_id == current_user.id
+        ).order_by(AnalysisResult.created_at.desc()).offset(20).all()
+        
+        for result in user_results:
+            db.delete(result)
+        db.commit()
     
     # Return response
     return {
@@ -962,6 +993,87 @@ async def debug_routes():
                 "name": route.name
             })
     return {"routes": routes}
+
+
+@app.get("/export/pdf")
+def export_pdf(analysis_id: str, current_user: UserProfile = Depends(get_current_user)):
+    """
+    Export analysis result as PDF.
+    Requires user authentication and valid analysis_id.
+    """
+    try:
+        # Get database session
+        db = next(get_db())
+        
+        # Find the analysis draft
+        analysis_draft = db.query(AnalysisDraft).filter(
+            AnalysisDraft.id == analysis_id,
+            AnalysisDraft.user_id == current_user.id
+        ).first()
+        
+        if not analysis_draft:
+            return {"error": "Analysis not found"}
+        
+        # Parse the analysis data
+        import json
+        preview = json.loads(analysis_draft.preview)
+        
+        # Extract data for PDF
+        risk_level = preview.get('overview', {}).get('risk_level', 'Medium')
+        risk_items = preview.get('key_findings', [])
+        summary = preview.get('overview', {}).get('summary', 'Analysis completed')
+        generated_time = analysis_draft.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')
+        
+        # Generate PDF
+        from fpdf import FPDF
+        
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Set font
+        pdf.set_font("Arial", "B", 16)
+        
+        # Title
+        pdf.cell(0, 20, "ClearLease Analysis Report", ln=True, align="C")
+        
+        # Risk Level
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, f"Risk Level: {risk_level}", ln=True)
+        
+        # Risk Items
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Risk Items:", ln=True)
+        pdf.set_font("Arial", "", 10)
+        for i, item in enumerate(risk_items, 1):
+            pdf.cell(0, 8, f"{i}. {item.get('title', 'Risk Item')}", ln=True)
+        
+        # Summary
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Summary:", ln=True)
+        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(0, 8, summary)
+        
+        # Generated Time
+        pdf.set_font("Arial", "I", 10)
+        pdf.cell(0, 15, f"Generated Time: {generated_time}", ln=True, align="R")
+        
+        # Output PDF to buffer
+        buffer = io.BytesIO()
+        pdf.output(buffer)
+        buffer.seek(0)
+        
+        # Return PDF as response
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=clearlease_analysis_{analysis_id}.pdf"
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error in PDF export: {str(e)}")
+        return {"error": "Failed to generate PDF"}
 
 
 @app.post("/ingest")

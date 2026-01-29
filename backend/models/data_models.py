@@ -637,6 +637,21 @@ class AnalysisDraft(Base):
     unlocked_at = Column(DateTime, nullable=True)
 
 
+class AnalysisResult(Base):
+    """
+    Analysis result model for database storage.
+    Corresponds to the analysis_results table.
+    """
+    __tablename__ = "analysis_results"
+
+    id = Column(String, primary_key=True, unique=True, nullable=False)
+    user_id = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    risk_level = Column(String, nullable=False)
+    summary = Column(String, nullable=False)
+    source_type = Column(String, nullable=False)
+
+
 class AnalysisDraftResponse(BaseModel):
     """
     Analysis draft response model for API output.
