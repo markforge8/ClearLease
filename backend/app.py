@@ -47,6 +47,7 @@ protected_auth_router = APIRouter(prefix="/api/auth")
 # Application factory pattern
 def create_app():
     """Create and configure the FastAPI application"""
+    print("CREATE_APP_CALLED")
     app = FastAPI()
     
     # Configure CORS
@@ -63,9 +64,16 @@ def create_app():
         allow_headers=["*"],
     )
     
+    # Verify router routes before including
+    print(f"PUBLIC_AUTH_ROUTES_COUNT: {len(public_auth_router.routes)}")
+    print(f"PROTECTED_AUTH_ROUTES_COUNT: {len(protected_auth_router.routes)}")
+    
     # Include routers - this happens AFTER all route definitions
     app.include_router(public_auth_router)
     app.include_router(protected_auth_router)
+    
+    # Verify app routes after including
+    print(f"APP_ROUTES_COUNT_AFTER_INCLUDE: {len(app.routes)}")
     
     return app
 
