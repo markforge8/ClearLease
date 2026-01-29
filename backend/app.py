@@ -44,6 +44,22 @@ from fastapi import APIRouter
 public_auth_router = APIRouter(prefix="/api/auth")
 protected_auth_router = APIRouter(prefix="/api/auth")
 
+# ===== MODEL DEFINITIONS =====
+# These must come BEFORE route definitions
+
+class AuthResponse(BaseModel):
+    success: bool
+    data: dict = None
+    error: str = None
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 # ===== ROUTE FUNCTION DEFINITIONS =====
 # These must come BEFORE create_app() call
 
@@ -306,20 +322,7 @@ class AnalyzeRequest(BaseModel):
     contract_text: str
 
 
-class RegisterRequest(BaseModel):
-    email: str
-    password: str
 
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class AuthResponse(BaseModel):
-    success: bool
-    data: dict = None
-    error: str = None
 
 
 @app.get("/health")
