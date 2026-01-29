@@ -37,30 +37,40 @@ import os
 # Get port from environment variable, default to 8080
 PORT = int(os.getenv("PORT", "8080"))
 
-app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import APIRouter
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://clearlease-frontend.vercel.app",
-        "https://clearlease-frontend-ce76hevcm-mark-forges-projects.vercel.app",  # 前端部署域名
-        "http://localhost:3000",  # 开发环境
-        "https://clearlease-production.up.railway.app"  # Railway 公网域名
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Create routers
 public_auth_router = APIRouter(prefix="/api/auth")
 protected_auth_router = APIRouter(prefix="/api/auth")
 
-# Include routers
-app.include_router(public_auth_router)
-app.include_router(protected_auth_router)
+# Application factory pattern
+def create_app():
+    """Create and configure the FastAPI application"""
+    app = FastAPI()
+    
+    # Configure CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "https://clearlease-frontend.vercel.app",
+            "https://clearlease-frontend-ce76hevcm-mark-forges-projects.vercel.app",  # 前端部署域名
+            "http://localhost:3000",  # 开发环境
+            "https://clearlease-production.up.railway.app"  # Railway 公网域名
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Include routers - this happens AFTER all route definitions
+    app.include_router(public_auth_router)
+    app.include_router(protected_auth_router)
+    
+    return app
+
+# Create app instance - this is the entry point for Railway
+app = create_app()
 
 
 @app.on_event("startup")
