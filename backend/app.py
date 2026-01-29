@@ -13,6 +13,7 @@ from datetime import datetime
 from jose import JWTError, jwt
 from dotenv import load_dotenv
 from typing import Optional
+from fastapi import UploadFile, File
 
 # Fix Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -961,5 +962,84 @@ async def debug_routes():
                 "name": route.name
             })
     return {"routes": routes}
+
+
+@app.post("/ingest")
+async def ingest(file: UploadFile = File(...)):
+    """
+    Upload file and extract text based on file type.
+    Supports .txt, .pdf, .png, .jpg, .jpeg files.
+    """
+    try:
+        # Get file extension
+        file_ext = file.filename.lower().split('.')[-1]
+        
+        if file_ext == 'txt':
+            # Process text file
+            content = await file.read()
+            text = content.decode('utf-8', errors='ignore')
+            if not text or len(text.strip()) < 10:
+                return {"error": "Unable to extract readable text"}
+            return {
+                "text": text,
+                "source_type": "txt"
+            }
+        
+        elif file_ext == 'pdf':
+            # Process PDF file
+            import pdfplumber
+            
+            # Save temp file
+            temp_path = f"temp_{file.filename}"
+            with open(temp_path, "wb") as f:
+                content = await file.read()
+                f.write(content)
+            
+            # Extract text from PDF
+            text = ""
+            with pdfplumber.open(temp_path) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            
+            # Clean up temp file
+            import os
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            
+            if not text or len(text.strip()) < 10:
+                return {"error": "Unable to extract readable text"}
+            return {
+                "text": text,
+                "source_type": "pdf"
+            }
+        
+        elif file_ext in ['png', 'jpg', 'jpeg']:
+            # Process image file
+            import pytesseract
+            from PIL import Image
+            import io
+            
+            # Read image content
+            content = await file.read()
+            image = Image.open(io.BytesIO(content))
+            
+            # Extract text using OCR
+            text = pytesseract.image_to_string(image, lang='eng')
+            
+            if not text or len(text) < 200:
+                return {"error": "Unable to extract readable text"}
+            return {
+                "text": text,
+                "source_type": "image"
+            }
+        
+        else:
+            return {"error": "Unable to extract readable text"}
+    
+    except Exception as e:
+        print(f"Error in ingest endpoint: {str(e)}")
+        return {"error": "Unable to extract readable text"}
 
 
