@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from jose import JWTError, jwt
 from dotenv import load_dotenv
+from typing import Optional
 
 # Fix Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -591,7 +592,7 @@ async def gumroad_webhook(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/api/me", response_model=dict)
-async def get_user_status(Authorization: str = Header(...), db: Session = Depends(get_db)):
+async def get_user_status(Authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """
     Get current user's status including paid status.
     Uses Supabase JWT for authentication.
@@ -600,6 +601,10 @@ async def get_user_status(Authorization: str = Header(...), db: Session = Depend
     try:
         # Print received Authorization header
         print(f"Received Authorization header: {Authorization}")
+        
+        # Check if Authorization header is provided
+        if not Authorization:
+            raise HTTPException(status_code=401, detail="Authorization header required")
         
         # Extract token from Authorization header
         token = Authorization.replace("Bearer ", "")
