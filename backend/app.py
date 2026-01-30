@@ -75,8 +75,11 @@ def save_analysis_record(user_id: str, analysis_id: str, contract_text: str, bas
         db.add(analysis_record)
         db.commit()
         
+        # Log successful save
+        print(f"[INFO] History record committed: analysis_id={analysis_id}")
+        
     except Exception as e:
-        print(f"Error saving analysis record: {str(e)}")
+        print(f"[ERROR] Error saving analysis record: {str(e)}")
 
 # Get port from environment variable, default to 8080
 PORT = int(os.getenv("PORT", "8080"))
@@ -370,11 +373,14 @@ def health():
 
 
 @app.post("/analyze")
-def analyze(request: AnalyzeRequest, current_user: Optional[UserProfile] = Depends(get_current_user_optional)):
+def analyze(request: AnalyzeRequest, current_user: UserProfile = Depends(get_current_user)):
     """
     Analyze contract text and return分层 results based on user's paid status.
     All users get basic analysis, paid users get full analysis.
     """
+    # Add DEBUG log for current_user
+    print(f"[DEBUG] analyze current_user = {current_user}")
+    
     # Run analysis (always execute regardless of paid status)
     gateway_output = run_end_to_end(request.contract_text)
     
@@ -400,8 +406,12 @@ def analyze(request: AnalyzeRequest, current_user: Optional[UserProfile] = Depen
     analysis_id = None
     if current_user:
         analysis_id = str(uuid.uuid4())
+        # Log before save
+        print(f"[INFO] Before save_analysis_record: analysis_id={analysis_id}")
         # Save analysis record - only save what user is allowed to see (basic_result)
         save_analysis_record(current_user.id, analysis_id, request.contract_text, basic_result)
+        # Log after save
+        print(f"[INFO] After save_analysis_record: analysis_id={analysis_id}")
     
     # Return response
     return {
