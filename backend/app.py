@@ -416,6 +416,7 @@ def analyze(request: AnalyzeRequest, current_user: UserProfile = Depends(get_cur
     # Return response
     return {
         "analysis_id": analysis_id,
+        "view_state": "READY",
         "basic_result": basic_result,
         "full_result": full_result if is_paid else None,
         "locked": not is_paid
@@ -962,6 +963,7 @@ def get_history(current_user: UserProfile = Depends(get_current_user)):
         for record in recent_records:
             history.append({
                 "analysis_id": record.analysis_id,
+                "view_state": "READY",
                 "created_at": record.created_at.isoformat(),
                 "risk_level": record.risk_level,
                 "summary": record.summary,
@@ -1010,6 +1012,7 @@ def get_history_detail(analysis_id: str, current_user: UserProfile = Depends(get
         # Return detailed information with complete input/output snapshot
         return {
             "analysis_id": record.analysis_id,
+            "view_state": "READY",
             "created_at": record.created_at.isoformat(),
             "input_snapshot": {
                 "original_text": record.original_text,
