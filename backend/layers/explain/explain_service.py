@@ -100,7 +100,7 @@ class ExplainService:
             ExplanationOutput containing overall_message and explanation_blocks
         """
         # Use neutral overall message (no risk level-based judgment)
-        overall_message = "我们发现了一些需要您注意的条款。请查看以下详细信息。"
+        overall_message = "We found some terms that require your attention. Please review the details below."
         
         # Map each risk_item to an explanation_block
         explanation_blocks: List[ExplanationBlock] = []

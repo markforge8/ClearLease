@@ -65,17 +65,17 @@ def build_explain_v2_input_from_contract(contract_text: str, analysis_output) ->
     notice_text = ""
     deadline_text = ""
     if "90 days" in contract_lower:
-        deadline_text = "合同到期前90天"
-        notice_text = "在续约窗口关闭前提供书面终止通知"
+        deadline_text = "90 days before contract expiration"
+        notice_text = "Provide written termination notice before the renewal window closes"
     elif "30 days" in contract_lower:
-        deadline_text = "合同到期前30天"
-        notice_text = "在续约窗口关闭前提供书面终止通知"
+        deadline_text = "30 days before contract expiration"
+        notice_text = "Provide written termination notice before the renewal window closes"
     elif "60 days" in contract_lower:
-        deadline_text = "合同到期前60天"
-        notice_text = "在续约窗口关闭前提供书面终止通知"
+        deadline_text = "60 days before contract expiration"
+        notice_text = "Provide written termination notice before the renewal window closes"
     else:
-        deadline_text = "合同到期前"
-        notice_text = "在续约窗口关闭前提供书面终止通知"
+        deadline_text = "Before contract expiration"
+        notice_text = "Provide written termination notice before the renewal window closes"
     
     return ExplainV2Input(
         trap_type=TrapType.TEMPORAL_LOCK_IN,
