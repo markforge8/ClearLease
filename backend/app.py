@@ -27,15 +27,56 @@ load_dotenv()
 from backend.run_gateway_json_output import run_end_to_end
 from backend.database import init_db
 from backend.config.database import get_db
-from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload, AnalysisDraft, AnalysisDraftResponse, Payment
+from backend.models.data_models import UserProfile, UserProfileResponse, GumroadWebhookPayload, Payment
 from backend.utils.password import hash_password, verify_password
 from backend.utils.jwt import create_access_token
 from backend.utils.auth import get_current_user, get_current_user_optional
 import uuid
 import json
 from datetime import datetime
+import time
 
 import os
+
+# Function to save analysis record
+def save_analysis_record(user_id: str, analysis_id: str, contract_text: str, basic_result):
+    """
+    Save analysis record to database.
+    Only called when analysis is completed and user is logged in.
+    Data source: Analyze API's basic_result (what user is allowed to see)
+    """
+    try:
+        # Get database session
+        db = next(get_db())
+        
+        # Import AnalysisRecord model
+        from backend.models.data_models import AnalysisRecord
+        
+        # Extract data from basic_result (what user is allowed to see)
+        overview = basic_result.get('overview', {})
+        risk_level = overview.get('risk_level', 'medium')
+        summary = overview.get('summary', 'Analysis completed')
+        risks = basic_result.get('key_findings', [])
+        
+        # Create analysis record
+        analysis_record = AnalysisRecord(
+            analysis_id=analysis_id,
+            user_id=user_id,
+            original_text=contract_text,
+            language="English",  # Default language
+            risk_level=risk_level,
+            summary=summary,
+            risks=json.dumps(risks),
+            model_version="v1",
+            processing_time=None  # Add if available
+        )
+        
+        # Save to database
+        db.add(analysis_record)
+        db.commit()
+        
+    except Exception as e:
+        print(f"Error saving analysis record: {str(e)}")
 
 # Get port from environment variable, default to 8080
 PORT = int(os.getenv("PORT", "8080"))
@@ -355,61 +396,12 @@ def analyze(request: AnalyzeRequest, current_user: Optional[UserProfile] = Depen
     # Check if user is paid
     is_paid = current_user.paid if current_user else False
     
-    # Generate analysis_id and save draft for logged-in users
+    # Generate analysis_id for logged-in users
     analysis_id = None
     if current_user:
         analysis_id = str(uuid.uuid4())
-        # Create analysis draft
-        analysis_draft = AnalysisDraft(
-            id=analysis_id,
-            user_id=current_user.id,
-            contract_text=request.contract_text,
-            preview=json.dumps(basic_result),
-            full_analysis=json.dumps(full_result),
-            locked=True,
-            created_at=datetime.utcnow(),
-            unlocked_at=None
-        )
-        # Save to database
-        db = next(get_db())
-        db.add(analysis_draft)
-        db.commit()
-        db.refresh(analysis_draft)
-        
-        # If user is paid, unlock the analysis
-        if is_paid:
-            analysis_draft.locked = False
-            analysis_draft.unlocked_at = datetime.utcnow()
-            db.commit()
-            db.refresh(analysis_draft)
-        
-        # Save analysis result to AnalysisResult table
-        from backend.models.data_models import AnalysisResult
-        
-        # Extract risk level and summary
-        risk_level = gateway_output.overview.get('risk_level', 'medium')
-        summary = gateway_output.overview.get('summary', 'Analysis completed')
-        
-        # Create analysis result
-        analysis_result = AnalysisResult(
-            id=str(uuid.uuid4()),
-            user_id=current_user.id,
-            created_at=datetime.utcnow(),
-            risk_level=risk_level,
-            summary=summary,
-            source_type="text"  # Default source type
-        )
-        db.add(analysis_result)
-        db.commit()
-        
-        # Keep only the latest 20 records for this user
-        user_results = db.query(AnalysisResult).filter(
-            AnalysisResult.user_id == current_user.id
-        ).order_by(AnalysisResult.created_at.desc()).offset(20).all()
-        
-        for result in user_results:
-            db.delete(result)
-        db.commit()
+        # Save analysis record - only save what user is allowed to see (basic_result)
+        save_analysis_record(current_user.id, analysis_id, request.contract_text, basic_result)
     
     # Return response
     return {
@@ -663,62 +655,7 @@ def reset_paid(current_user: UserProfile = Depends(get_current_user)):
         return {"success": False, "error": "Internal server error"}
 
 
-@app.get("/api/analysis/current")
-def get_current_analysis(current_user: UserProfile = Depends(get_current_user)):
-    """
-    Get the current user's latest analysis draft.
-    If user is paid, unlock and return full analysis.
-    """
-    try:
-        # Get database session
-        db = next(get_db())
-        
-        # Find the latest locked analysis draft for this user
-        latest_draft = db.query(AnalysisDraft).filter(
-            AnalysisDraft.user_id == current_user.id,
-            AnalysisDraft.locked == True
-        ).order_by(
-            AnalysisDraft.created_at.desc()
-        ).first()
-        
-        # If no draft found, return error
-        if not latest_draft:
-            return {
-                "success": False,
-                "error": "No analysis draft found"
-            }
-        
-        # Check if user is paid
-        is_paid = current_user.paid
-        
-        # Parse preview and full analysis from JSON strings
-        preview = json.loads(latest_draft.preview)
-        full_analysis = json.loads(latest_draft.full_analysis) if latest_draft.full_analysis else None
-        
-        # If user is paid, unlock the analysis
-        if is_paid:
-            latest_draft.locked = False
-            latest_draft.unlocked_at = datetime.utcnow()
-            db.commit()
-            db.refresh(latest_draft)
-        
-        # Return response
-        return {
-            "success": True,
-            "data": {
-                "analysis_id": latest_draft.id,
-                "preview": preview,
-                "full_analysis": full_analysis if is_paid else None,
-                "locked": not is_paid
-            }
-        }
-        
-    except Exception as e:
-        print(f"Error in get_current_analysis endpoint: {str(e)}")
-        return {
-            "success": False,
-            "error": "Internal server error"
-        }
+
 
 
 
@@ -999,23 +936,26 @@ def get_history(current_user: UserProfile = Depends(get_current_user)):
         # Get database session
         db = next(get_db())
         
-        # Import AnalysisResult model
-        from backend.models.data_models import AnalysisResult
+        # Import AnalysisRecord model
+        from backend.models.data_models import AnalysisRecord
         
-        # Get recent analysis results for current user
-        recent_results = db.query(AnalysisResult).filter(
-            AnalysisResult.user_id == current_user.id
-        ).order_by(AnalysisResult.created_at.desc()).limit(20).all()
+        # Get recent analysis records for current user
+        # Only return records belonging to the current user
+        # Order by created_at descending
+        # Limit to 20 records (no automatic cleanup)
+        recent_records = db.query(AnalysisRecord).filter(
+            AnalysisRecord.user_id == current_user.id
+        ).order_by(AnalysisRecord.created_at.desc()).limit(20).all()
         
         # Format results
         history = []
-        for result in recent_results:
+        for record in recent_records:
             history.append({
-                "id": result.id,
-                "created_at": result.created_at.isoformat(),
-                "risk_level": result.risk_level,
-                "summary": result.summary,
-                "source_type": result.source_type
+                "analysis_id": record.analysis_id,
+                "created_at": record.created_at.isoformat(),
+                "risk_level": record.risk_level,
+                "summary": record.summary,
+                "language": record.language
             })
         
         return {
@@ -1029,85 +969,61 @@ def get_history(current_user: UserProfile = Depends(get_current_user)):
         }
 
 
-@app.get("/export/pdf")
-def export_pdf(analysis_id: str, current_user: UserProfile = Depends(get_current_user)):
+@app.get("/history/{analysis_id}")
+def get_history_detail(analysis_id: str, current_user: UserProfile = Depends(get_current_user)):
     """
-    Export analysis result as PDF.
-    Requires user authentication and valid analysis_id.
+    Get detailed information for a specific analysis.
     """
     try:
         # Get database session
         db = next(get_db())
         
-        # Find the analysis draft
-        analysis_draft = db.query(AnalysisDraft).filter(
-            AnalysisDraft.id == analysis_id,
-            AnalysisDraft.user_id == current_user.id
+        # Import AnalysisRecord model
+        from backend.models.data_models import AnalysisRecord
+        
+        # Find the analysis record by ID and user ID
+        # Must verify that record belongs to current user
+        record = db.query(AnalysisRecord).filter(
+            AnalysisRecord.analysis_id == analysis_id,
+            AnalysisRecord.user_id == current_user.id
         ).first()
         
-        if not analysis_draft:
-            return {"error": "Analysis not found"}
-        
-        # Parse the analysis data
-        import json
-        preview = json.loads(analysis_draft.preview)
-        
-        # Extract data for PDF
-        risk_level = preview.get('overview', {}).get('risk_level', 'Medium')
-        risk_items = preview.get('key_findings', [])
-        summary = preview.get('overview', {}).get('summary', 'Analysis completed')
-        generated_time = analysis_draft.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')
-        
-        # Generate PDF
-        from fpdf import FPDF
-        
-        pdf = FPDF()
-        pdf.add_page()
-        
-        # Set font
-        pdf.set_font("Arial", "B", 16)
-        
-        # Title
-        pdf.cell(0, 20, "ClearLease Analysis Report", ln=True, align="C")
-        
-        # Risk Level
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, f"Risk Level: {risk_level}", ln=True)
-        
-        # Risk Items
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "Risk Items:", ln=True)
-        pdf.set_font("Arial", "", 10)
-        for i, item in enumerate(risk_items, 1):
-            pdf.cell(0, 8, f"{i}. {item.get('title', 'Risk Item')}", ln=True)
-        
-        # Summary
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "Summary:", ln=True)
-        pdf.set_font("Arial", "", 10)
-        pdf.multi_cell(0, 8, summary)
-        
-        # Generated Time
-        pdf.set_font("Arial", "I", 10)
-        pdf.cell(0, 15, f"Generated Time: {generated_time}", ln=True, align="R")
-        
-        # Output PDF to buffer
-        buffer = io.BytesIO()
-        pdf.output(buffer)
-        buffer.seek(0)
-        
-        # Return PDF as response
-        return StreamingResponse(
-            buffer,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"attachment; filename=clearlease_analysis_{analysis_id}.pdf"
+        if not record:
+            return {
+                "error": "Analysis not found"
             }
-        )
+        
+        # Parse risks from JSON string
+        import json
+        risks = json.loads(record.risks)
+        
+        # Return detailed information with complete input/output snapshot
+        return {
+            "analysis_id": record.analysis_id,
+            "created_at": record.created_at.isoformat(),
+            "input_snapshot": {
+                "original_text": record.original_text,
+                "language": record.language
+            },
+            "output_snapshot": {
+                "risk_level": record.risk_level,
+                "summary": record.summary,
+                "risks": risks
+            },
+            "meta": {
+                "model_version": record.model_version,
+                "processing_time": record.processing_time
+            }
+        }
         
     except Exception as e:
-        print(f"Error in PDF export: {str(e)}")
-        return {"error": "Failed to generate PDF"}
+        print(f"Error in history detail endpoint: {str(e)}")
+        return {
+            "error": "Failed to retrieve analysis details"
+        }
+
+
+
 
 
 @app.post("/ingest")

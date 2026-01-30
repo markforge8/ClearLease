@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 class IngestionInput(BaseModel):
@@ -616,53 +617,41 @@ class UserProfileResponse(BaseModel):
 
 
 # ============================================================================
-# Analysis Draft Models
+# Analysis Record Models
 # ============================================================================
 
-
-class AnalysisDraft(Base):
+class AnalysisRecord(Base):
     """
-    Analysis draft model for database storage.
-    Corresponds to the analysis_drafts table.
+    Analysis record model for database storage.
+    Corresponds to the analysis_records table.
+    Represents a completed analysis with all necessary details.
     """
-    __tablename__ = "analysis_drafts"
+    __tablename__ = "analysis_records"
 
-    id = Column(String, primary_key=True, unique=True, nullable=False)
-    user_id = Column(String, nullable=True)
-    contract_text = Column(String, nullable=False)
-    preview = Column(String, nullable=False)  # JSON string
-    full_analysis = Column(String, nullable=True)  # JSON string
-    locked = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    unlocked_at = Column(DateTime, nullable=True)
-
-
-class AnalysisResult(Base):
-    """
-    Analysis result model for database storage.
-    Corresponds to the analysis_results table.
-    """
-    __tablename__ = "analysis_results"
-
-    id = Column(String, primary_key=True, unique=True, nullable=False)
+    # Independent database primary key
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    
+    # Business identifier for user-facing analysis (not unique, just for business purposes)
+    analysis_id = Column(String, nullable=False, index=True)
+    
+    # User information - mandatory
     user_id = Column(String, nullable=False, index=True)
+    
+    # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Input snapshot
+    original_text = Column(String, nullable=False)
+    language = Column(String, nullable=False, default="English")
+    
+    # Output snapshot
     risk_level = Column(String, nullable=False)
     summary = Column(String, nullable=False)
-    source_type = Column(String, nullable=False)
-
-
-class AnalysisDraftResponse(BaseModel):
-    """
-    Analysis draft response model for API output.
-    """
-    analysis_id: str
-    preview: dict
-    locked: bool
-    full_analysis: dict = None
-
-    class Config:
-        from_attributes = True
+    risks = Column(Text, nullable=False)  # Text field for JSON string (for display only)
+    
+    # Metadata
+    model_version = Column(String, nullable=False, default="v1")
+    processing_time = Column(Integer, nullable=True)  # in milliseconds
 
 
 class GumroadWebhookPayload(BaseModel):
